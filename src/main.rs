@@ -7,8 +7,8 @@ use std::time::Instant;
 
 // 引入 trust-dns 协议相关模块用于 RFC 8484 二进制 DNS 消息
 use trust_dns_resolver::proto::op::{Message, Query};
-use trust_dns_resolver::proto::rr::{RecordType, Name, RData};
-use trust_dns_resolver::proto::serialize::binary::{BinEncodable, BinDecodable, BinEncoder};
+use trust_dns_resolver::proto::rr::{RecordType, Name}; // 移除未使用的 RData
+use trust_dns_resolver::proto::serialize::binary::BinEncodable; // 移除未使用的 BinDecodable, BinEncoder
 use rand::Rng;
 
 // --- 1. 输入配置 ---
@@ -75,14 +75,8 @@ async fn doh_query_manual(client: &Client, doh_url: &str, domain: &str, record_t
     let query = Query::query(name, record_type);
     message.add_query(query);
 
-    // 2. 消息编码为二进制
-    let mut request_buffer = Vec::with_capacity(512);
-    // 修复：使用正确的 API 设置随机 ID (header() 返回可变引用)
-    message.header().set_id(rand::thread_rng().gen());
-    // 修复：使用 BinEncodable trait 的 emit 方法，需要传入 BinEncoder
-    use trust_dns_resolver::proto::serialize::binary::BinEncoder;
-    let mut encoder = BinEncoder::new(&mut request_buffer);
-    message.emit(&mut encoder).context("Failed to encode DNS message")?;
+    // 2. 消息编码为二进制 - 使用 trust-dns-resolver 的高级 API
+    let request_buffer = message.to_vec().context("Failed to encode DNS message")?;
 
     // 3. 使用 reqwest 发送 POST 请求
     let response = client
@@ -118,7 +112,7 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
         Ok(response) => {
             for record in response.answers() {
                 // 修复：使用 and_then 来链式调用 to_ip_addr 方法
-                if let Some(ip) = record.data().and_then(|rdata| rdata.to_ip_addr()) {
+                if let Some(ip) = record.data().and_then(|rdata| rdata.ip_addr()) {
                     ips.push(ip);
                 }
             }
@@ -131,7 +125,7 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
         Ok(response) => {
             for record in response.answers() {
                 // 修复：使用 and_then 来链式调用 to_ip_addr 方法
-                if let Some(ip) = record.data().and_then(|rdata| rdata.to_ip_addr()) {
+                if let Some(ip) = record.data().and_then(|rdata| rdata.ip_addr()) {
                     ips.push(ip);
                 }
             }
