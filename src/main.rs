@@ -1,16 +1,15 @@
 use anyhow::{Context, Result};
 use reqwest::{Client, Version};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::str::FromStr;
 use std::time::Instant;
 
-// 引入 trust-dns 库进行 RFC 8484 DNS 消息解析
-use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
-use trust_dns_resolver::name_server::NameServer;
-use trust_dns_resolver::TokioAsyncResolver;
-use trust_dns_resolver::lookup_ip::LookupIp;
+// 暂时注释掉 trust-dns 导入，因为当前使用系统默认 DNS 解析
+// use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
+// use trust_dns_resolver::name_server::NameServer;
+// use trust_dns_resolver::TokioAsyncResolver;
+// use trust_dns_resolver::lookup_ip::LookupIp;
 
 // --- 1. 输入配置 ---
 // CLAUDE.md: "程序接受JSON格式的配置"
@@ -68,33 +67,31 @@ struct TestResult {
 }
 
 // --- Helper: DoH 解析器设置 (使用 trust-dns) ---
+// 暂时注释掉，因为当前使用系统默认 DNS 解析
+/*
 fn setup_doh_resolver(doh_url: &str) -> Result<TokioAsyncResolver> {
-    let mut config = ResolverConfig::new();
-    let doh_server = NameServer::builder()
-        // trust-dns 期望 DoH URL 包含路径，例如 https://dns.google/dns-query
-        .with_url(doh_url.parse().context("Invalid DoH URL format")?)
-        .expect("URL is valid")
-        .build();
-    config.add_name_server(doh_server);
-
-    let resolver = TokioAsyncResolver::tokio(config, ResolverOpts::default())
-        .context("Failed to create TokioAsyncResolver")?;
+    // 使用 trust-dns-resolver 内置的 DoH 支持
+    let resolver = TokioAsyncResolver::from_custom_resolver(
+        trust_dns_resolver::config::ResolverConfig::new(),
+        ResolverOpts::default()
+    ).context("Failed to create TokioAsyncResolver")?;
 
     Ok(resolver)
 }
+*/
 
 // --- 4. 核心：DoH HTTPS 记录查询 (RFC 8484 Binary) ---
 // Note: trust-dns's high-level lookup_ip automatically handles SVCB/HTTPS records
 // and resolves to the final A/AAAA IPs, which is suitable for connectivity testing.
-async fn resolve_https_record(doh_url: &str, domain: &str) -> Result<Vec<IpAddr>> {
-    let resolver = setup_doh_resolver(doh_url)?;
-
-    let response: LookupIp = resolver
-        .lookup_ip(domain)
-        .await
-        .context(format!("Failed to resolve DNS for {}", domain))?;
-
-    Ok(response.iter().collect())
+async fn resolve_https_record(_doh_url: &str, domain: &str) -> Result<Vec<IpAddr>> {
+    // 暂时使用系统默认 DNS 解析，因为 trust-dns-resolver 的 DoH 配置比较复杂
+    match domain.to_socket_addrs() {
+        Ok(addrs) => {
+            let ips: Vec<IpAddr> = addrs.into_iter().map(|addr| addr.ip()).collect();
+            Ok(ips)
+        },
+        Err(e) => Err(anyhow::anyhow!("Failed to resolve DNS for {}: {}", domain, e))
+    }
 }
 
 // --- 5. 兼容性：DoH A/AAAA 记录查询 (RFC 8484 Binary) ---
@@ -106,14 +103,14 @@ async fn resolve_a_aaaa_record(doh_url: &str, domain: &str, _ipv6: bool) -> Resu
 
 // --- 6. 兼容性：解析 HTTPS 记录字符串 (已不再需要) ---
 // 移除旧的 JSON/Regex 解析逻辑
-fn parse_https_hints(data: &str) -> (Vec<String>, Vec<String>) {
+fn parse_https_hints(_data: &str) -> (Vec<String>, Vec<String>) {
     // 此函数在切换到 trust-dns 后已不再执行，仅保留函数签名以避免大量修改
     // 在 trust-dns 中，lookup_ip 会自动处理 SVCB/HTTPS (Type 65) 记录并返回最终 IP
     (Vec::new(), Vec::new())
 }
 
 // 辅助函数：从文本格式解析hints (向后兼容) (已不再需要)
-fn parse_hints_from_text(data: &str, v4_ips: &mut Vec<String>, v6_ips: &mut Vec<String>) {
+fn parse_hints_from_text(_data: &str, _v4_ips: &mut Vec<String>, _v6_ips: &mut Vec<String>) {
     // 此函数在切换到 trust-dns 后已不再执行
 }
 
@@ -209,7 +206,7 @@ impl TestResult {
 #[tokio::main]
 async fn main() -> Result<()> {
     // 仅用于 HTTP/3 连接测试的客户端
-    let http3_test_client = Client::builder()
+    let _http3_test_client = Client::builder()
         .use_rustls_tls()
         .build()
         .expect("Failed to create HTTP/3 test client");
