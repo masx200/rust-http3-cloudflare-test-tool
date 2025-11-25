@@ -7,7 +7,6 @@ use std::str::FromStr;
 use std::time::Instant;
 use regex::Regex;
 
-
 // --- 1. 输入配置 (支持三种域名参数分离) ---
 #[derive(Debug, Deserialize, Clone)]
 struct InputTask {
@@ -17,13 +16,12 @@ struct InputTask {
     doh_url: String,            // DoH 解析服务的 URL
     port: u16,                  // 目标端口，通常是 443
     prefer_ipv6: Option<bool>,  // 仅测试 IPv6 Hint (true) 或 IPv4 Hint (false)
+    resolve_mode: String,        // "binary" 或 "json" 或 "doh"
     // 可选：直接指定IP列表（跳过DNS解析）
     direct_ips: Option<Vec<String>>,
-    // 解析模式："binary" 使用RFC 8484二进制格式，"json" 使用JSON API
-    resolve_mode: Option<String>,
 }
 
-// --- 2. Google DoH JSON 响应结构 (用于兼容性) ---
+// --- 2. Google DoH JSON 响应结构 ---
 #[derive(Debug, Deserialize)]
 struct DoHResponse {
     #[serde(rename = "Status")]
@@ -37,7 +35,7 @@ struct DoHAnswer {
     name: String,
     #[serde(rename = "type")]
     record_type: u16,
-    data: String,
+    data: String, // 包含 alpn, ipv4hint, ipv6hint 的长字符串
 }
 
 // --- 3. 输出结果 ---
@@ -57,9 +55,8 @@ struct TestResult {
     dns_source: String, // "Direct Input", "Binary DoH", 或 "JSON DoH"
 }
 
-// --- 4. 核心：DoH HTTPS 记录查询与解析 ---
+// --- 4. 核心：DoH HTTPS 记录查询 (JSON API) ---
 async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> Result<Vec<IpAddr>> {
-    // 使用 JSON API 模式获取 HTTPS 记录
     let dns_url = format!(
         "{}/resolve?name={}&type=HTTPS",
         doh_url.trim_end_matches('/'),
@@ -83,7 +80,7 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
 
     if let Some(answers) = resp.answer {
         for ans in answers {
-            if ans.record_type == 65 {
+            if ans.record_type == 65 { // HTTPS 记录类型
                 let (v4, v6) = parse_https_hints(&ans.data);
                 ip_strings.extend(v4);
                 ip_strings.extend(v6);
@@ -99,15 +96,19 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
         }
     }
 
-    Ok(ips)
+    // 去重
+    let unique_ips: HashSet<IpAddr> = ips.into_iter().collect();
+    Ok(unique_ips.into_iter().collect())
 }
 
-// --- 5. 兼容性：DoH JSON API 解析 (用于 Google DNS API) ---
-async fn resolve_doh_json(client: &Client, domain: &str, ipv6: bool) -> Result<Vec<String>> {
+// --- 5. 兼容性：DoH A/AAAA 记录查询 ---
+async fn resolve_a_aaaa_record(client: &Client, doh_url: &str, domain: &str, ipv6: bool) -> Result<Vec<IpAddr>> {
     let type_param = if ipv6 { "AAAA" } else { "A" };
     let dns_url = format!(
-        "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/resolve?name={}&type={}",
-        domain, type_param
+        "{}/resolve?name={}&type={}",
+        doh_url.trim_end_matches('/'),
+        domain,
+        type_param
     );
 
     let resp = client
@@ -123,15 +124,25 @@ async fn resolve_doh_json(client: &Client, domain: &str, ipv6: bool) -> Result<V
         return Err(anyhow::anyhow!("DNS query returned non-zero status: {}", resp.status));
     }
 
-    let mut ips = Vec::new();
+    let mut ip_strings = Vec::new();
+
     if let Some(answers) = resp.answer {
         for ans in answers {
             // A (1) 或 AAAA (28)
             if ans.record_type == 1 || ans.record_type == 28 {
-                ips.push(ans.data);
+                ip_strings.push(ans.data.trim().to_string());
             }
         }
     }
+
+    // 转换字符串IP为IpAddr
+    let mut ips = Vec::new();
+    for ip_str in ip_strings {
+        if let Ok(ip) = IpAddr::from_str(&ip_str) {
+            ips.push(ip);
+        }
+    }
+
     Ok(ips)
 }
 
@@ -163,42 +174,6 @@ fn parse_https_hints(data: &str) -> (Vec<String>, Vec<String>) {
     (v4_ips, v6_ips)
 }
 
-async fn resolve_https_json(client: &Client, domain: &str) -> Result<Vec<String>> {
-    let dns_url = format!(
-        "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/resolve?name={}&type=HTTPS",
-        domain
-    );
-
-    let resp = client
-        .get(&dns_url)
-        .send()
-        .await
-        .context("Failed to connect to DNS resolver")?
-        .json::<DoHResponse>()
-        .await
-        .context("Failed to parse DNS JSON")?;
-
-    if resp.status != 0 {
-        return Err(anyhow::anyhow!("DNS query returned non-zero status: {}", resp.status));
-    }
-
-    let mut all_ips = Vec::new();
-
-    if let Some(answers) = resp.answer {
-        for ans in answers {
-            if ans.record_type == 65 {
-                let (v4, v6) = parse_https_hints(&ans.data);
-                all_ips.extend(v4);
-                all_ips.extend(v6);
-            }
-        }
-    }
-
-    // 去重
-    let unique_ips: HashSet<String> = all_ips.into_iter().collect();
-    Ok(unique_ips.into_iter().collect())
-}
-
 // --- 7. HTTP/3 连通性测试 ---
 async fn test_connectivity(task: InputTask, ip: IpAddr, dns_source: String) -> TestResult {
     // 关键点 1: URL 决定 SNI。reqwest 将使用 test_sni_host 作为 SNI。
@@ -207,12 +182,12 @@ async fn test_connectivity(task: InputTask, ip: IpAddr, dns_source: String) -> T
     let socket_addr = SocketAddr::new(ip, task.port);
     let ip_ver = if ip.is_ipv6() { "IPv6" } else { "IPv4" };
 
-    // 客户端构建：强制绑定 IP，并设置 H2
+    // 创建独立的 Client 实例以绑定特定的 IP
     let client_build = Client::builder()
         // 关键点 2: 强制 IP 连接 (将 test_sni_host 解析到特定的 IP)
         .resolve_to_addrs(&task.test_sni_host, &[socket_addr])
         .danger_accept_invalid_certs(true)
-        .http2_prior_knowledge()
+        .http3_prior_knowledge() // 核心：强制使用 HTTP/3
         .timeout(std::time::Duration::from_secs(5))
         .no_proxy()
         .build();
@@ -306,7 +281,7 @@ async fn main() -> Result<()> {
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": null,
-            "resolve_mode": "binary"
+            "resolve_mode": "https"
         },
         {
             "doh_resolve_domain": "speed.cloudflare.com",
@@ -315,7 +290,7 @@ async fn main() -> Result<()> {
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
-            "resolve_mode": "binary"
+            "resolve_mode": "https"
         },
         {
             "doh_resolve_domain": "speed.cloudflare.com",
@@ -324,17 +299,17 @@ async fn main() -> Result<()> {
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/resolve",
             "port": 443,
             "prefer_ipv6": true,
-            "resolve_mode": "json"
+            "resolve_mode": "a_aaaa"
         },
         {
             "doh_resolve_domain": "cloudflare.com",
             "test_sni_host": "cloudflare.com",
             "test_host_header": "cloudflare.com",
-            "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/resolve",
+            "doh_url": "https://1.1.1.1/dns-query",
             "port": 443,
             "prefer_ipv6": null,
-            "resolve_mode": "json",
-            "direct_ips": ["104.16.123.96", "172.67.214.232"]
+            "direct_ips": ["104.16.123.96", "172.67.214.232"],
+            "resolve_mode": "direct"
         }
     ]
     "#;
@@ -347,7 +322,8 @@ async fn main() -> Result<()> {
     for task in tasks {
         let client_ref = doh_http_client.clone();
 
-        println!(">>> 正在通过 {} 解析 {} 的 HTTPS 记录...", task.doh_url, task.doh_resolve_domain);
+        println!(">>> 正在通过 {} 解析 {} 的 HTTPS 记录 (模式: {})...",
+                 task.doh_url, task.doh_resolve_domain, task.resolve_mode);
 
         // 检查是否有直接指定的IP
         if let Some(direct_ips) = &task.direct_ips {
@@ -374,11 +350,9 @@ async fn main() -> Result<()> {
         }
 
         // 根据解析模式选择解析方法
-        let resolve_mode = task.resolve_mode.as_deref().unwrap_or("binary");
-
-        match resolve_mode {
-            "binary" => {
-                // 使用JSON API模式解析HTTPS记录
+        match task.resolve_mode.as_str() {
+            "https" => {
+                // 使用 HTTPS 记录查询
                 match resolve_https_record(&client_ref, &task.doh_url, &task.doh_resolve_domain).await {
                     Ok(ips) => {
                         if ips.is_empty() {
@@ -405,34 +379,13 @@ async fn main() -> Result<()> {
                     },
                     Err(e) => {
                         eprintln!("    [X] HTTPS记录解析失败: {:?}", e);
-
-                        // 回退到A/AAAA记录解析
-                        println!("    -> 回退到A/AAAA记录解析...");
-                        let resolve_ipv6 = task.prefer_ipv6.unwrap_or(false);
-                        match resolve_doh_json(&client_ref, &task.doh_resolve_domain, resolve_ipv6).await {
-                            Ok(ip_strings) => {
-                                println!("    -> A/AAAA解析成功，获取到 {} 个IP地址: {:?}", ip_strings.len(), ip_strings);
-
-                                for ip_str in ip_strings {
-                                    if let Ok(ip_addr) = IpAddr::from_str(&ip_str) {
-                                        let task_clone = task.clone();
-                                        futures.push(tokio::spawn(async move {
-                                            test_connectivity(task_clone, ip_addr, "A/AAAA DoH (Fallback)".to_string()).await
-                                        }));
-                                    }
-                                }
-                            },
-                            Err(e) => {
-                                eprintln!("    [X] A/AAAA解析也失败: {:?}", e);
-                            }
-                        }
                     }
                 }
             },
-            "json" => {
-                // 使用JSON API模式解析A/AAAA记录
+            "a_aaaa" => {
+                // 使用 A/AAAA 记录查询
                 let resolve_ipv6 = task.prefer_ipv6.unwrap_or(false);
-                match resolve_doh_json(&client_ref, &task.doh_resolve_domain, resolve_ipv6).await {
+                match resolve_a_aaaa_record(&client_ref, &task.doh_url, &task.doh_resolve_domain, resolve_ipv6).await {
                     Ok(ips) => {
                         if ips.is_empty() {
                             println!("    [!] 未找到IP地址");
@@ -440,26 +393,29 @@ async fn main() -> Result<()> {
                         }
                         println!("    -> 解析成功，获取到 {} 个IP地址: {:?}", ips.len(), ips);
 
-                        for ip_str in ips {
-                            if let Ok(ip_addr) = IpAddr::from_str(&ip_str) {
-                                let task_clone = task.clone();
-                                futures.push(tokio::spawn(async move {
-                                    test_connectivity(task_clone, ip_addr, "JSON DoH".to_string()).await
-                                }));
-                            }
+                        for ip in ips {
+                            let task_clone = task.clone();
+                            futures.push(tokio::spawn(async move {
+                                test_connectivity(task_clone, ip, "A/AAAA DoH".to_string()).await
+                            }));
                         }
                     },
                     Err(e) => {
-                        eprintln!("    [X] JSON DNS解析失败: {:?}", e);
+                        eprintln!("    [X] A/AAAA记录解析失败: {:?}", e);
                     }
                 }
             },
+            "direct" => {
+                // 直接模式，跳过DNS解析
+                println!("    -> 跳过DNS解析，使用直接IP模式");
+            },
             _ => {
-                eprintln!("    [!] 不支持的解析模式: {}", resolve_mode);
+                eprintln!("    [!] 不支持的解析模式: {}", task.resolve_mode);
             }
         }
     }
 
+    // 等待所有测试完成
     let mut results = Vec::new();
     for f in futures {
         if let Ok(res) = f.await {
