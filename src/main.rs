@@ -6,10 +6,10 @@ use std::str::FromStr;
 use std::time::Instant;
 
 // 引入 trust-dns 协议相关模块用于 RFC 8484 二进制 DNS 消息
-use trust_dns_resolver::proto::op::{Message, Query};
-use trust_dns_resolver::proto::rr::{RecordType, Name}; // 移除未使用的 RData
-use trust_dns_resolver::proto::serialize::binary::BinEncodable; // 移除未使用的 BinDecodable, BinEncoder
 use rand::Rng;
+use trust_dns_resolver::proto::op::{Message, Query};
+use trust_dns_resolver::proto::rr::{Name, RecordType}; // 移除未使用的 RData
+use trust_dns_resolver::proto::serialize::binary::BinEncodable; // 移除未使用的 BinDecodable, BinEncoder
 
 // --- 1. 输入配置 ---
 // CLAUDE.md: "程序接受JSON格式的配置"
@@ -59,7 +59,7 @@ struct TestResult {
     host_header: String, // 实际使用的 Host header
     success: bool,
     status_code: Option<u16>,
-    protocol: String,    // 实际协商的协议 (h3, h2, http/1.1)
+    protocol: String, // 实际协商的协议 (h3, h2, http/1.1)
     latency_ms: Option<u64>,
     server_header: Option<String>,
     error_msg: Option<String>,
@@ -67,7 +67,12 @@ struct TestResult {
 }
 
 // --- Helper: 手动 DoH 查询函数 (使用 reqwest + trust-dns proto) ---
-async fn doh_query_manual(client: &Client, doh_url: &str, domain: &str, record_type: RecordType) -> Result<Message> {
+async fn doh_query_manual(
+    client: &Client,
+    doh_url: &str,
+    domain: &str,
+    record_type: RecordType,
+) -> Result<Message> {
     // 1. 构建 DNS 查询消息 (Question)
     let mut message = Message::new();
     let name = Name::from_str(domain).context("Invalid domain name for DNS query")?;
@@ -90,15 +95,22 @@ async fn doh_query_manual(client: &Client, doh_url: &str, domain: &str, record_t
 
     if !response.status().is_success() {
         // 如果 HTTP 状态码不是 2xx，返回错误
-        return Err(anyhow::anyhow!("DoH server returned HTTP error status: {}", response.status()));
+        return Err(anyhow::anyhow!(
+            "DoH server returned HTTP error status: {}",
+            response.status()
+        ));
     }
 
     // 4. 读取二进制响应体
-    let response_body = response.bytes().await.context("Failed to read DoH response body")?;
+    let response_body = response
+        .bytes()
+        .await
+        .context("Failed to read DoH response body")?;
 
     // 5. 解码 DNS 响应消息
     // 修复：使用 Message::from_vec 方法直接从字节数组解析
-    let dns_response = Message::from_vec(&response_body).context("Failed to decode DNS binary message (invalid data)")?;
+    let dns_response = Message::from_vec(&response_body)
+        .context("Failed to decode DNS binary message (invalid data)")?;
 
     Ok(dns_response)
 }
@@ -116,7 +128,7 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
                     ips.push(ip);
                 }
             }
-        },
+        }
         Err(e) => return Err(anyhow::anyhow!("Failed to query A record: {}", e)),
     }
 
@@ -129,7 +141,7 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
                     ips.push(ip);
                 }
             }
-        },
+        }
         Err(e) => return Err(anyhow::anyhow!("Failed to query AAAA record: {}", e)),
     }
 
@@ -142,10 +154,14 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
 
 // --- 5. 兼容性：DoH A/AAAA 记录查询 (RFC 8484 Binary) ---
 // 在手动查询模式下，与 resolve_https_record 逻辑相似，直接查询 A/AAAA
-async fn resolve_a_aaaa_record(client: &Client, doh_url: &str, domain: &str, _ipv6: bool) -> Result<Vec<IpAddr>> {
+async fn resolve_a_aaaa_record(
+    client: &Client,
+    doh_url: &str,
+    domain: &str,
+    _ipv6: bool,
+) -> Result<Vec<IpAddr>> {
     resolve_https_record(client, doh_url, domain).await
 }
-
 
 // --- 7. HTTP/3 连通性测试 ---
 async fn test_connectivity(task: InputTask, ip: IpAddr, dns_source: String) -> TestResult {
@@ -167,7 +183,9 @@ async fn test_connectivity(task: InputTask, ip: IpAddr, dns_source: String) -> T
 
     let client = match client_build {
         Ok(c) => c,
-        Err(e) => return TestResult::fail(&task, &ip.to_string(), ip_ver, e.to_string(), dns_source),
+        Err(e) => {
+            return TestResult::fail(&task, &ip.to_string(), ip_ver, e.to_string(), dns_source)
+        }
     };
 
     let start = Instant::now();
@@ -253,7 +271,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
             "test_sni_host": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
             "test_host_header": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
-            "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.adguard-dns.com/dns-query",
+            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": null,
             "resolve_mode": "https"
@@ -262,7 +280,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "speed.cloudflare.com",
             "test_sni_host": "speed.cloudflare.com",
             "test_host_header": "speed.cloudflare.com",
-            "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.adguard-dns.com/dns-query",
+            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
             "resolve_mode": "https"
@@ -271,7 +289,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "speed.cloudflare.com",
             "test_sni_host": "speed.cloudflare.com",
             "test_host_header": "speed.cloudflare.com",
-            "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.adguard-dns.com/dns-query",
+            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": true,
             "resolve_mode": "a_aaaa"
@@ -280,7 +298,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "cloudflare.com",
             "test_sni_host": "cloudflare.com",
             "test_host_header": "cloudflare.com",
-            "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.adguard-dns.com/dns-query",
+            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": null,
             "direct_ips": ["104.16.123.96", "172.67.214.232"],
@@ -289,14 +307,16 @@ async fn main() -> Result<()> {
     ]
     "#;
 
-    let tasks: Vec<InputTask> = serde_json::from_str(input_json)
-        .context("Invalid JSON format in input")?;
+    let tasks: Vec<InputTask> =
+        serde_json::from_str(input_json).context("Invalid JSON format in input")?;
 
     let mut futures = Vec::new();
 
     for task in tasks {
-        println!(">>> 正在通过 {} 解析 {} 的 HTTPS 记录 (模式: {})...",
-                 task.doh_url, task.doh_resolve_domain, task.resolve_mode);
+        println!(
+            ">>> 正在通过 {} 解析 {} 的 HTTPS 记录 (模式: {})...",
+            task.doh_url, task.doh_resolve_domain, task.resolve_mode
+        );
 
         // 检查是否有直接指定的IP
         if let Some(direct_ips) = &task.direct_ips {
@@ -326,13 +346,19 @@ async fn main() -> Result<()> {
         match task.resolve_mode.as_str() {
             "https" => {
                 // 使用 HTTPS 记录查询 (现在是手动 RFC 8484 二进制 DoH)
-                match resolve_https_record(&dns_client, &task.doh_url, &task.doh_resolve_domain).await {
+                match resolve_https_record(&dns_client, &task.doh_url, &task.doh_resolve_domain)
+                    .await
+                {
                     Ok(ips) => {
                         if ips.is_empty() {
                             println!("    [!] 未找到 IP");
                             continue;
                         }
-                        println!("    -> 解析成功，获取到 {} 个 IP 地址: {:?}", ips.len(), ips);
+                        println!(
+                            "    -> 解析成功，获取到 {} 个 IP 地址: {:?}",
+                            ips.len(),
+                            ips
+                        );
 
                         for ip in ips {
                             let is_v6 = ip.is_ipv6();
@@ -346,19 +372,27 @@ async fn main() -> Result<()> {
 
                             let task_clone = task.clone();
                             futures.push(tokio::spawn(async move {
-                                test_connectivity(task_clone, ip, "HTTPS DoH (Binary)".to_string()).await
+                                test_connectivity(task_clone, ip, "HTTPS DoH (Binary)".to_string())
+                                    .await
                             }));
                         }
-                    },
+                    }
                     Err(e) => {
                         eprintln!("    [X] HTTPS记录解析失败: {:?}", e);
                     }
                 }
-            },
+            }
             "a_aaaa" => {
                 // 使用 A/AAAA 记录查询 (现在是手动 RFC 8484 二进制 DoH)
                 let resolve_ipv6 = task.prefer_ipv6.unwrap_or(false);
-                match resolve_a_aaaa_record(&dns_client, &task.doh_url, &task.doh_resolve_domain, resolve_ipv6).await {
+                match resolve_a_aaaa_record(
+                    &dns_client,
+                    &task.doh_url,
+                    &task.doh_resolve_domain,
+                    resolve_ipv6,
+                )
+                .await
+                {
                     Ok(ips) => {
                         if ips.is_empty() {
                             println!("    [!] 未找到IP地址");
@@ -369,19 +403,20 @@ async fn main() -> Result<()> {
                         for ip in ips {
                             let task_clone = task.clone();
                             futures.push(tokio::spawn(async move {
-                                test_connectivity(task_clone, ip, "A/AAAA DoH (Binary)".to_string()).await
+                                test_connectivity(task_clone, ip, "A/AAAA DoH (Binary)".to_string())
+                                    .await
                             }));
                         }
-                    },
+                    }
                     Err(e) => {
                         eprintln!("    [X] A/AAAA记录解析失败: {:?}", e);
                     }
                 }
-            },
+            }
             "direct" => {
                 // 直接模式，跳过DNS解析
                 println!("    -> 跳过DNS解析，使用直接IP模式");
-            },
+            }
             _ => {
                 eprintln!("    [!] 不支持的解析模式: {}", task.resolve_mode);
             }
