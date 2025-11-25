@@ -21,8 +21,8 @@ serde_json = "1"
 anyhow = "1"
 
 # 专业 DNS 协议库 (为将来RFC 8484完整实现准备)
-# trust-dns = { version = "0.23.0-alpha.5", features = ["dns-over-https"] }
-
+# 🚨 修正：使用 trust-dns-resolver 0.23.0-alpha.5
+trust-dns-resolver = { version = "0.23.0-alpha.5", features = ["dns-over-https"] }
 # 正则表达式 (用于解析复杂的 DNS 字符串)
 regex = "1"
 
