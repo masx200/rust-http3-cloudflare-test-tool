@@ -1848,11 +1848,14 @@ dependencies = [
  "parking_lot",
  "rand 0.8.5",
  "resolv-conf",
+ "rustls 0.21.12",
  "smallvec",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-rustls 0.24.1",
  "tracing",
  "trust-dns-proto",
+ "webpki-roots 0.25.4",
 ]
 
 [[package]]

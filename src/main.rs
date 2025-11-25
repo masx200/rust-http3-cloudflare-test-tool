@@ -7,11 +7,48 @@ use std::str::FromStr;
 use std::time::Instant;
 
 // 引入 trust-dns 库进行 RFC 8484 DNS 消息解析
-use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
-use trust_dns_resolver::name_server::NameServer;
-use trust_dns_resolver::proto::rr::{RData};
-use trust_dns_resolver::proto::op::Message;
-use trust_dns_resolver::proto::rr::RecordType;
+// 暂时注释掉以避免编译问题，当前使用JSON API进行DNS查询
+// use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
+// use trust_dns_resolver::name_server::NameServer;
+// use trust_dns_resolver::proto::rr::{RData};
+// use trust_dns_resolver::proto::op::Message;
+// use trust_dns_resolver::proto::rr::RecordType;
+
+// --- 1. 输入配置 ---
+// CLAUDE.md: "程序接受JSON格式的配置"
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct InputTask {
+    doh_resolve_domain: String,
+    test_sni_host: String,
+    test_host_header: String,
+    doh_url: String,
+    port: u16,
+    prefer_ipv6: Option<bool>,
+    resolve_mode: String,
+    direct_ips: Option<Vec<String>>,
+}
+
+// --- 2. DoH JSON API 响应格式 (例如 Google/Cloudflare 的 JSON API) ---
+// 参照 resolve_https_record 和 resolve_a_aaaa_record 中的用法
+#[derive(Debug, Deserialize)]
+struct DoHResponse {
+    #[serde(default)]
+    Status: Option<u32>, // Google DNS status field
+    #[serde(default)]
+    status: u32, // AdGuard/other DNS status field (default)
+    #[serde(default)]
+    Answer: Option<Vec<Answer>>, // Google DNS answer field
+    #[serde(default)]
+    answer: Option<Vec<Answer>>, // AdGuard/other DNS answer field
+}
+
+// 辅助结构，用于解析 Answer 数组中的单个记录
+#[derive(Debug, Deserialize)]
+struct Answer {
+    #[serde(rename = "type")] // 'type' is a reserved keyword in Rust
+    record_type: u16,
+    data: String,
+}
 
 // --- 3. 输出结果 ---
 #[derive(Debug, Serialize)]
@@ -47,13 +84,19 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
         .await
         .context("Failed to parse DNS JSON")?;
 
-    if resp.status != 0 {
-        return Err(anyhow::anyhow!("DNS query returned non-zero status: {}", resp.status));
+    // Use lowercase status if present, otherwise use uppercase (for different DoH providers)
+    let final_status = resp.status.or(resp.Status).unwrap_or(0);
+
+    if final_status != 0 {
+        return Err(anyhow::anyhow!("DNS query returned non-zero status: {}", final_status));
     }
 
     let mut ip_strings = Vec::new();
 
-    if let Some(answers) = resp.answer {
+    // Use lowercase answer if present, otherwise use uppercase (for different DoH providers)
+    let answers = resp.answer.or(resp.Answer);
+
+    if let Some(answers) = answers {
         for ans in answers {
             if ans.record_type == 65 { // HTTPS 记录类型
                 let (v4, v6) = parse_https_hints(&ans.data);
@@ -95,13 +138,19 @@ async fn resolve_a_aaaa_record(client: &Client, doh_url: &str, domain: &str, ipv
         .await
         .context("Failed to parse DNS JSON")?;
 
-    if resp.status != 0 {
-        return Err(anyhow::anyhow!("DNS query returned non-zero status: {}", resp.status));
+    // Use lowercase status if present, otherwise use uppercase (for different DoH providers)
+    let final_status = resp.status.or(resp.Status).unwrap_or(0);
+
+    if final_status != 0 {
+        return Err(anyhow::anyhow!("DNS query returned non-zero status: {}", final_status));
     }
 
     let mut ip_strings = Vec::new();
 
-    if let Some(answers) = resp.answer {
+    // Use lowercase answer if present, otherwise use uppercase (for different DoH providers)
+    let answers = resp.answer.or(resp.Answer);
+
+    if let Some(answers) = answers {
         for ans in answers {
             // A (1) 或 AAAA (28)
             if ans.record_type == 1 || ans.record_type == 28 {
