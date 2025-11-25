@@ -295,9 +295,9 @@ async fn main() -> Result<()> {
             "resolve_mode": "a_aaaa"
         },
         {
-            "doh_resolve_domain": "cloudflare.com",
-            "test_sni_host": "cloudflare.com",
-            "test_host_header": "cloudflare.com",
+            "doh_resolve_domain": "speed.cloudflare.com",
+            "test_sni_host": "speed.cloudflare.com",
+            "test_host_header": "speed.cloudflare.com",
             "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": null,
