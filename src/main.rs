@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use reqwest::{Client, Version};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet; // 新增: 用于存储去重后的 IP
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::time::Instant;
@@ -8,8 +9,10 @@ use std::time::Instant;
 // 引入 trust-dns 协议相关模块用于 RFC 8484 二进制 DNS 消息
 use rand::Rng;
 use trust_dns_resolver::proto::op::{Message, Query};
-use trust_dns_resolver::proto::rr::{Name, RecordType}; // 移除未使用的 RData
-use trust_dns_resolver::proto::serialize::binary::BinEncodable; // 移除未使用的 BinDecodable, BinEncoder
+use trust_dns_resolver::proto::rr::{RecordType, Name, RData};
+use trust_dns_resolver::proto::serialize::binary::BinEncodable;
+// 引入 SVCB 记录解析所需的组件 (用于解析 ipv4hint/ipv6hint)
+use trust_dns_resolver::proto::rr::rdata::svcb::{SvcParamKey, SVCB};
 
 // --- 1. 输入配置 ---
 // CLAUDE.md: "程序接受JSON格式的配置"
@@ -66,6 +69,17 @@ struct TestResult {
     dns_source: String, // "Direct Input", "Binary DoH", 或 "JSON DoH"
 }
 
+// --- Helper: 提取 A/AAAA 记录的 IP ---
+// 提取 A/AAAA 记录 IP 的公共逻辑，可用于 answers, authorities, additionals 三个部分。
+fn extract_a_aaaa_ips(records: &[trust_dns_resolver::proto::rr::Record], ips: &mut HashSet<IpAddr>) {
+    for record in records {
+        // rdata.ip_addr() 是 trust-dns 中用于 A/AAAA 记录的便捷方法
+        if let Some(ip) = record.data().and_then(|rdata| rdata.ip_addr()) {
+            ips.insert(ip);
+        }
+    }
+}
+
 // --- Helper: 手动 DoH 查询函数 (使用 reqwest + trust-dns proto) ---
 async fn doh_query_manual(
     client: &Client,
@@ -117,39 +131,65 @@ async fn doh_query_manual(
 
 // --- 4. 核心：DoH HTTPS 记录查询 (RFC 8484 Binary) ---
 async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> Result<Vec<IpAddr>> {
-    let mut ips = Vec::new();
+    let mut ips = HashSet::new();
 
-    // 1. 先尝试查询 A 记录
-    match doh_query_manual(client, doh_url, domain, RecordType::A).await {
+    // 1. 查询 HTTPS (SVCB) 记录
+    match doh_query_manual(client, doh_url, domain, RecordType::HTTPS).await {
         Ok(response) => {
             for record in response.answers() {
-                // 修复：使用 and_then 来链式调用 to_ip_addr 方法
-                if let Some(ip) = record.data().and_then(|rdata| rdata.ip_addr()) {
-                    ips.push(ip);
+                if let Some(rdata) = record.data() {
+                    // 检查是否是 SVCB 记录并提取 IP hints
+                    if let RData::SVCB(svc_rec) = rdata {
+                        // 从 ipv4hint 中提取 IP
+                        if let Some(ipv4_param) = svc_rec.svc_params().get(&SvcParamKey::Ipv4Hint) {
+                            if let Some(ip_list) = ipv4_param.ip_addrs() {
+                                for ip in ip_list {
+                                    ips.insert(*ip);
+                                }
+                            }
+                        }
+
+                        // 从 ipv6hint 中提取 IP
+                        if let Some(ipv6_param) = svc_rec.svc_params().get(&SvcParamKey::Ipv6Hint) {
+                            if let Some(ip_list) = ipv6_param.ip_addrs() {
+                                for ip in ip_list {
+                                    ips.insert(*ip);
+                                }
+                            }
+                        }
+                    }
                 }
             }
-        }
-        Err(e) => return Err(anyhow::anyhow!("Failed to query A record: {}", e)),
+        },
+        Err(e) => eprintln!("    [X] HTTPS记录解析失败: {:?}", e),
     }
 
-    // 2. 再尝试查询 AAAA 记录
-    match doh_query_manual(client, doh_url, domain, RecordType::AAAA).await {
-        Ok(response) => {
-            for record in response.answers() {
-                // 修复：使用 and_then 来链式调用 to_ip_addr 方法
-                if let Some(ip) = record.data().and_then(|rdata| rdata.ip_addr()) {
-                    ips.push(ip);
-                }
-            }
+    // 2. 如果未在 SVCB 记录中找到 IP，执行 A/AAAA 记录的兜底查询
+    if ips.is_empty() {
+        println!("    -> HTTPS记录中未找到 IP，尝试 A/AAAA 记录查询作为兜底...");
+
+        // 查询 A 记录
+        if let Ok(response) = doh_query_manual(client, doh_url, domain, RecordType::A).await {
+            // 检查 Answers, Authorities, Additionals 所有部分
+            extract_a_aaaa_ips(response.answers(), &mut ips);
+            extract_a_aaaa_ips(response.authoritative(), &mut ips);
+            extract_a_aaaa_ips(response.additionals(), &mut ips);
         }
-        Err(e) => return Err(anyhow::anyhow!("Failed to query AAAA record: {}", e)),
+
+        // 查询 AAAA 记录
+        if let Ok(response) = doh_query_manual(client, doh_url, domain, RecordType::AAAA).await {
+            extract_a_aaaa_ips(response.answers(), &mut ips);
+            extract_a_aaaa_ips(response.authoritative(), &mut ips);
+            extract_a_aaaa_ips(response.additionals(), &mut ips);
+        }
     }
 
-    // 注意：HTTPS (SVCB) 记录解析非常复杂，trust-dns 客户端通常会执行这个过程。
-    // 手动实现时，我们通常直接查 A/AAAA 记录来获取连接 IP。
-    // 如果需要完整的 HTTPS 记录解析，需要更复杂的逻辑来处理 SVCB 记录中的 Hint。
+    // 3. 排序并返回
+    let mut ip_vec = ips.into_iter().collect::<Vec<_>>();
+    // 排序逻辑 (这里默认 IPv4 优先)
+    ip_vec.sort_by_key(|ip| ip.is_ipv6());
 
-    Ok(ips)
+    Ok(ip_vec)
 }
 
 // --- 5. 兼容性：DoH A/AAAA 记录查询 (RFC 8484 Binary) ---
