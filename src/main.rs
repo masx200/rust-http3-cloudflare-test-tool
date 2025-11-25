@@ -5,38 +5,13 @@ use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::time::Instant;
-use regex::Regex;
 
-// --- 1. 输入配置 (支持三种域名参数分离) ---
-#[derive(Debug, Deserialize, Clone)]
-struct InputTask {
-    doh_resolve_domain: String, // 1. 用于 DoH 查询，获取 IP Hint 的域名
-    test_sni_host: String,      // 2. 用于 TLS SNI 的域名
-    test_host_header: String,   // 3. 用于 HTTP Host Header 的值
-    doh_url: String,            // DoH 解析服务的 URL
-    port: u16,                  // 目标端口，通常是 443
-    prefer_ipv6: Option<bool>,  // 仅测试 IPv6 Hint (true) 或 IPv4 Hint (false)
-    resolve_mode: String,        // "binary" 或 "json" 或 "doh"
-    // 可选：直接指定IP列表（跳过DNS解析）
-    direct_ips: Option<Vec<String>>,
-}
-
-// --- 2. Google DoH JSON 响应结构 ---
-#[derive(Debug, Deserialize)]
-struct DoHResponse {
-    #[serde(rename = "Status")]
-    status: i32,
-    #[serde(rename = "Answer")]
-    answer: Option<Vec<DoHAnswer>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct DoHAnswer {
-    name: String,
-    #[serde(rename = "type")]
-    record_type: u16,
-    data: String, // 包含 alpn, ipv4hint, ipv6hint 的长字符串
-}
+// 引入 trust-dns 库进行 RFC 8484 DNS 消息解析
+use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
+use trust_dns_resolver::name_server::NameServer;
+use trust_dns_resolver::proto::rr::{RData};
+use trust_dns_resolver::proto::op::Message;
+use trust_dns_resolver::proto::rr::RecordType;
 
 // --- 3. 输出结果 ---
 #[derive(Debug, Serialize)]

@@ -20,8 +20,8 @@ serde_json = "1"
 # 错误处理
 anyhow = "1"
 
-# 专业 DNS 协议库 (用于解析二进制 DNS 消息)
-hickory-proto = "0.24"
+# 专业 DNS 协议库
+trust-dns = { version = "0.23.0-alpha.5", features = ["dns-over-https"] }
 
 # 正则表达式 (用于解析复杂的 DNS 字符串)
 regex = "1"
