@@ -8,8 +8,8 @@ use std::time::Instant;
 // 引入 trust-dns 协议相关模块用于 RFC 8484 二进制 DNS 消息
 use trust_dns_resolver::proto::op::{Message, Query};
 use trust_dns_resolver::proto::rr::{RecordType, Name, RData};
-use trust_dns_resolver::proto::serialize::binary::BinEncodable;
-use trust_dns_resolver::proto::serialize::binary::BinDecodable;
+use trust_dns_resolver::proto::serialize::binary::{BinEncodable, BinDecodable, BinEncoder};
+use rand::Rng;
 
 // --- 1. 输入配置 ---
 // CLAUDE.md: "程序接受JSON格式的配置"
@@ -77,8 +77,12 @@ async fn doh_query_manual(client: &Client, doh_url: &str, domain: &str, record_t
 
     // 2. 消息编码为二进制
     let mut request_buffer = Vec::with_capacity(512);
-    message.header_mut().set_id(rand::random::<u16>()); // 随机设置 ID
-    message.emit(&mut request_buffer).context("Failed to encode DNS message")?;
+    // 修复：使用正确的 API 设置随机 ID (header() 返回可变引用)
+    message.header().set_id(rand::thread_rng().gen());
+    // 修复：使用 BinEncodable trait 的 emit 方法，需要传入 BinEncoder
+    use trust_dns_resolver::proto::serialize::binary::BinEncoder;
+    let mut encoder = BinEncoder::new(&mut request_buffer);
+    message.emit(&mut encoder).context("Failed to encode DNS message")?;
 
     // 3. 使用 reqwest 发送 POST 请求
     let response = client
@@ -99,8 +103,8 @@ async fn doh_query_manual(client: &Client, doh_url: &str, domain: &str, record_t
     let response_body = response.bytes().await.context("Failed to read DoH response body")?;
 
     // 5. 解码 DNS 响应消息
-    let mut decoder = BinDecoder::new(&response_body);
-    let dns_response = Message::read(&mut decoder).context("Failed to decode DNS binary message (invalid data)")?;
+    // 修复：使用 Message::from_vec 方法直接从字节数组解析
+    let dns_response = Message::from_vec(&response_body).context("Failed to decode DNS binary message (invalid data)")?;
 
     Ok(dns_response)
 }
@@ -113,7 +117,8 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
     match doh_query_manual(client, doh_url, domain, RecordType::A).await {
         Ok(response) => {
             for record in response.answers() {
-                if let Some(ip) = record.data().to_ip_addr() {
+                // 修复：使用 and_then 来链式调用 to_ip_addr 方法
+                if let Some(ip) = record.data().and_then(|rdata| rdata.to_ip_addr()) {
                     ips.push(ip);
                 }
             }
@@ -125,7 +130,8 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
     match doh_query_manual(client, doh_url, domain, RecordType::AAAA).await {
         Ok(response) => {
             for record in response.answers() {
-                if let Some(ip) = record.data().to_ip_addr() {
+                // 修复：使用 and_then 来链式调用 to_ip_addr 方法
+                if let Some(ip) = record.data().and_then(|rdata| rdata.to_ip_addr()) {
                     ips.push(ip);
                 }
             }
