@@ -1,0 +1,28 @@
+[package]
+name = "rust-http3-cloudflare-test-tool"
+version = "0.1.0"
+edition = "2021"
+authors = ["masx200"]
+description = "A Rust tool for testing Cloudflare HTTP/3 connectivity with DNS over HTTPS support"
+license = "MIT"
+
+[dependencies]
+# HTTP 客户端 (包含 rustls, json 特性)
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "gzip", "brotli"] }
+
+# 异步运行时
+tokio = { version = "1", features = ["full"] }
+
+# 序列化/反序列化
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# 错误处理
+anyhow = "1"
+
+# 专业 DNS 协议库 (用于解析二进制 DNS 消息)
+hickory-proto = "0.24"
+
+# 正则表达式 (用于解析复杂的 DNS 字符串)
+regex = "1"
+
