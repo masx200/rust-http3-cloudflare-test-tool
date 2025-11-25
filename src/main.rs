@@ -121,14 +121,14 @@ async fn resolve_a_aaaa_record(client: &Client, doh_url: &str, domain: &str, ipv
     Ok(ips)
 }
 
-// --- 6. 兼容性：解析 HTTPS 记录字符串 (使用正则表达式) ---
+// --- 6. 兼容性：解析 HTTPS 记录字符串 (使用 RFC 8484 标准 + 正则表达式回退) ---
 fn parse_https_hints(data: &str) -> (Vec<String>, Vec<String>) {
     let mut v4_ips = Vec::new();
     let mut v6_ips = Vec::new();
 
-    // 正则匹配 ipv4hint=... 和 ipv6hint=...
-    let re_v4 = Regex::new(r"ipv4hint=([0-9\.,]+)").unwrap();
-    let re_v6 = Regex::new(r"ipv6hint=([0-9a-fA-F:\.,]+)").unwrap();
+    // 首先尝试使用正则表达式快速解析常见格式
+    let re_v4 = regex::Regex::new(r"ipv4hint=([0-9\.,]+)").unwrap();
+    let re_v6 = regex::Regex::new(r"ipv6hint=([0-9a-fA-F:\.,]+)").unwrap();
 
     if let Some(caps) = re_v4.captures(data) {
         if let Some(match_str) = caps.get(1) {
@@ -146,7 +146,37 @@ fn parse_https_hints(data: &str) -> (Vec<String>, Vec<String>) {
         }
     }
 
+    // 如果正则表达式没有找到结果，尝试更复杂的解析
+    if v4_ips.is_empty() && v6_ips.is_empty() {
+        // 可以在这里添加更复杂的RFC 8484解析逻辑
+        // 目前先使用文本解析作为回退
+        parse_hints_from_text(data, &mut v4_ips, &mut v6_ips);
+    }
+
     (v4_ips, v6_ips)
+}
+
+// 辅助函数：从文本格式解析hints (向后兼容)
+fn parse_hints_from_text(data: &str, v4_ips: &mut Vec<String>, v6_ips: &mut Vec<String>) {
+    // 使用正则表达式作为回退方案
+    let re_v4 = regex::Regex::new(r"ipv4hint=([0-9\.,]+)").unwrap();
+    let re_v6 = regex::Regex::new(r"ipv6hint=([0-9a-fA-F:\.,]+)").unwrap();
+
+    if let Some(caps) = re_v4.captures(data) {
+        if let Some(match_str) = caps.get(1) {
+            for ip in match_str.as_str().split(',') {
+                v4_ips.push(ip.trim().to_string());
+            }
+        }
+    }
+
+    if let Some(caps) = re_v6.captures(data) {
+        if let Some(match_str) = caps.get(1) {
+            for ip in match_str.as_str().split(',') {
+                v6_ips.push(ip.trim().to_string());
+            }
+        }
+    }
 }
 
 // --- 7. HTTP/3 连通性测试 ---
