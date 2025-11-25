@@ -1,15 +1,15 @@
 use anyhow::{Context, Result};
 use reqwest::{Client, Version};
 use serde::{Deserialize, Serialize};
-use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
+use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::time::Instant;
 
-// 暂时注释掉 trust-dns 导入，因为当前使用系统默认 DNS 解析
-// use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
-// use trust_dns_resolver::name_server::NameServer;
-// use trust_dns_resolver::TokioAsyncResolver;
-// use trust_dns_resolver::lookup_ip::LookupIp;
+// 引入 trust-dns 库进行 RFC 8484 DNS 消息解析
+use trust_dns_resolver::config::{ResolverConfig, ResolverOpts, NameServerConfig, Protocol};
+use trust_dns_resolver::TokioAsyncResolver;
+use trust_dns_resolver::lookup_ip::LookupIp;
+use http::Uri; // 用于解析 DoH URL
 
 // --- 1. 输入配置 ---
 // CLAUDE.md: "程序接受JSON格式的配置"
@@ -81,37 +81,56 @@ fn setup_doh_resolver(doh_url: &str) -> Result<TokioAsyncResolver> {
 */
 
 // --- 4. 核心：DoH HTTPS 记录查询 (RFC 8484 Binary) ---
-// Note: trust-dns's high-level lookup_ip automatically handles SVCB/HTTPS records
-// and resolves to the final A/AAAA IPs, which is suitable for connectivity testing.
-async fn resolve_https_record(_doh_url: &str, domain: &str) -> Result<Vec<IpAddr>> {
-    // 暂时使用系统默认 DNS 解析，因为 trust-dns-resolver 的 DoH 配置比较复杂
-    match domain.to_socket_addrs() {
-        Ok(addrs) => {
-            let ips: Vec<IpAddr> = addrs.into_iter().map(|addr| addr.ip()).collect();
-            Ok(ips)
-        },
-        Err(e) => Err(anyhow::anyhow!("Failed to resolve DNS for {}: {}", domain, e))
-    }
+async fn resolve_https_record(doh_url: &str, domain: &str) -> Result<Vec<IpAddr>> {
+    let resolver = setup_doh_resolver(doh_url).await?; // 异步创建解析器
+
+    let response: LookupIp = resolver
+        .lookup_ip(domain)
+        .await
+        .context(format!("Failed to resolve DNS for {}", domain))?;
+
+    Ok(response.iter().collect())
 }
 
 // --- 5. 兼容性：DoH A/AAAA 记录查询 (RFC 8484 Binary) ---
-// Now this is identical to HTTPS resolution, as lookup_ip finds all available IPs.
 async fn resolve_a_aaaa_record(doh_url: &str, domain: &str, _ipv6: bool) -> Result<Vec<IpAddr>> {
-    // The main loop already handles filtering by prefer_ipv6
+    // lookup_ip 会查找所有 A 和 AAAA 记录，和 resolve_https_record 相同
     resolve_https_record(doh_url, domain).await
 }
 
-// --- 6. 兼容性：解析 HTTPS 记录字符串 (已不再需要) ---
-// 移除旧的 JSON/Regex 解析逻辑
-fn parse_https_hints(_data: &str) -> (Vec<String>, Vec<String>) {
-    // 此函数在切换到 trust-dns 后已不再执行，仅保留函数签名以避免大量修改
-    // 在 trust-dns 中，lookup_ip 会自动处理 SVCB/HTTPS (Type 65) 记录并返回最终 IP
-    (Vec::new(), Vec::new())
-}
+// --- Helper: DoH 解析器设置 (使用 trust-dns) ---
+// 此函数将配置 trust-dns-resolver 使用指定的 DoH URL
+async fn setup_doh_resolver(doh_url: &str) -> Result<TokioAsyncResolver> {
+    // 1. 解析 DoH URL，获取主机名 (用于 SNI 和 IP 解析)
+    let doh_uri = doh_url.parse::<Uri>().context("Invalid DoH URL format")?;
+    let host = doh_uri.host().context("DoH URL must contain a host")?.to_string();
 
-// 辅助函数：从文本格式解析hints (向后兼容) (已不再需要)
-fn parse_hints_from_text(_data: &str, _v4_ips: &mut Vec<String>, _v6_ips: &mut Vec<String>) {
-    // 此函数在切换到 trust-dns 后已不再执行
+    // 2. 使用系统解析器查找 DoH 服务器的 IP 地址
+    let doh_server_socket_addrs: Vec<SocketAddr> = tokio::net::lookup_host((host.as_str(), 443))
+        .await
+        .context(format!("Failed to resolve DoH server host: {}", host))?
+        .collect();
+
+    let doh_server_ip = doh_server_socket_addrs
+        .first()
+        .context("No IP found for DoH server")?
+        .ip();
+
+    // 3. 配置 trust-dns-resolver
+    let mut config = ResolverConfig::new();
+    config.add_name_server(NameServerConfig {
+        socket_addr: SocketAddr::new(doh_server_ip, 443),
+        protocol: Protocol::Https,
+        tls_dns_name: Some(host.clone()),
+        tls_config: None,
+        bind_addr: None,
+        trust_negative_responses: true,
+    });
+
+    // 4. 创建解析器 (TokioAsyncResolver::tokio 不返回 Result，直接使用)
+    let resolver = TokioAsyncResolver::tokio(config, ResolverOpts::default());
+
+    Ok(resolver)
 }
 
 // --- 7. HTTP/3 连通性测试 ---
