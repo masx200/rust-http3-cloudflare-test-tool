@@ -20,9 +20,16 @@ serde_json = "1"
 # 错误处理
 anyhow = "1"
 
-# 专业 DNS 协议库 (为将来RFC 8484完整实现准备)
-# 暂时注释掉以避免编译问题，当前使用JSON API进行DNS查询
-trust-dns-resolver = { version = "0.23.0-alpha.5", features = ["dns-over-https", "dns-over-rustls"] }
+
+
+
+
 # 正则表达式 (用于解析复杂的 DNS 字符串)
 regex = "1"
 
+
+
+# 专业 DNS 协议库 (为将来RFC 8484完整实现准备)
+# 暂时注释掉以避免编译问题，当前使用JSON API进行DNS查询
+# Use "dns-over-https-rustls" to enable the required client config for DoH via rustls.
+trust-dns-resolver = { version = "0.23.0-alpha.5", features = ["dns-over-https-rustls"] }
