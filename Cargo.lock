@@ -1252,6 +1252,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "http 0.2.12",
+ "rand 0.8.5",
  "regex",
  "reqwest",
  "serde",

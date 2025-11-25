@@ -5,11 +5,11 @@ use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::time::Instant;
 
-// 引入 trust-dns 库进行 RFC 8484 DNS 消息解析
-use trust_dns_resolver::config::{ResolverConfig, ResolverOpts, NameServerConfig, Protocol};
-use trust_dns_resolver::TokioAsyncResolver;
-use trust_dns_resolver::lookup_ip::LookupIp;
-use http::Uri; // 用于解析 DoH URL
+// 引入 trust-dns 协议相关模块用于 RFC 8484 二进制 DNS 消息
+use trust_dns_resolver::proto::op::{Message, Query};
+use trust_dns_resolver::proto::rr::{RecordType, Name, RData};
+use trust_dns_resolver::proto::serialize::binary::BinEncodable;
+use trust_dns_resolver::proto::serialize::binary::BinDecodable;
 
 // --- 1. 输入配置 ---
 // CLAUDE.md: "程序接受JSON格式的配置"
@@ -66,72 +66,86 @@ struct TestResult {
     dns_source: String, // "Direct Input", "Binary DoH", 或 "JSON DoH"
 }
 
-// --- Helper: DoH 解析器设置 (使用 trust-dns) ---
-// 暂时注释掉，因为当前使用系统默认 DNS 解析
-/*
-fn setup_doh_resolver(doh_url: &str) -> Result<TokioAsyncResolver> {
-    // 使用 trust-dns-resolver 内置的 DoH 支持
-    let resolver = TokioAsyncResolver::from_custom_resolver(
-        trust_dns_resolver::config::ResolverConfig::new(),
-        ResolverOpts::default()
-    ).context("Failed to create TokioAsyncResolver")?;
+// --- Helper: 手动 DoH 查询函数 (使用 reqwest + trust-dns proto) ---
+async fn doh_query_manual(client: &Client, doh_url: &str, domain: &str, record_type: RecordType) -> Result<Message> {
+    // 1. 构建 DNS 查询消息 (Question)
+    let mut message = Message::new();
+    let name = Name::from_str(domain).context("Invalid domain name for DNS query")?;
 
-    Ok(resolver)
+    let query = Query::query(name, record_type);
+    message.add_query(query);
+
+    // 2. 消息编码为二进制
+    let mut request_buffer = Vec::with_capacity(512);
+    message.header_mut().set_id(rand::random::<u16>()); // 随机设置 ID
+    message.emit(&mut request_buffer).context("Failed to encode DNS message")?;
+
+    // 3. 使用 reqwest 发送 POST 请求
+    let response = client
+        .post(doh_url)
+        .header("Content-Type", "application/dns-message")
+        .header("Accept", "application/dns-message")
+        .body(request_buffer)
+        .send()
+        .await
+        .context(format!("Failed to send DoH request to {}", doh_url))?;
+
+    if !response.status().is_success() {
+        // 如果 HTTP 状态码不是 2xx，返回错误
+        return Err(anyhow::anyhow!("DoH server returned HTTP error status: {}", response.status()));
+    }
+
+    // 4. 读取二进制响应体
+    let response_body = response.bytes().await.context("Failed to read DoH response body")?;
+
+    // 5. 解码 DNS 响应消息
+    let mut decoder = BinDecoder::new(&response_body);
+    let dns_response = Message::read(&mut decoder).context("Failed to decode DNS binary message (invalid data)")?;
+
+    Ok(dns_response)
 }
-*/
 
 // --- 4. 核心：DoH HTTPS 记录查询 (RFC 8484 Binary) ---
-async fn resolve_https_record(doh_url: &str, domain: &str) -> Result<Vec<IpAddr>> {
-    let resolver = setup_doh_resolver(doh_url).await?; // 异步创建解析器
+async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> Result<Vec<IpAddr>> {
+    let mut ips = Vec::new();
 
-    let response: LookupIp = resolver
-        .lookup_ip(domain)
-        .await
-        .context(format!("Failed to resolve DNS for {}", domain))?;
+    // 1. 先尝试查询 A 记录
+    match doh_query_manual(client, doh_url, domain, RecordType::A).await {
+        Ok(response) => {
+            for record in response.answers() {
+                if let Some(ip) = record.data().to_ip_addr() {
+                    ips.push(ip);
+                }
+            }
+        },
+        Err(e) => return Err(anyhow::anyhow!("Failed to query A record: {}", e)),
+    }
 
-    Ok(response.iter().collect())
+    // 2. 再尝试查询 AAAA 记录
+    match doh_query_manual(client, doh_url, domain, RecordType::AAAA).await {
+        Ok(response) => {
+            for record in response.answers() {
+                if let Some(ip) = record.data().to_ip_addr() {
+                    ips.push(ip);
+                }
+            }
+        },
+        Err(e) => return Err(anyhow::anyhow!("Failed to query AAAA record: {}", e)),
+    }
+
+    // 注意：HTTPS (SVCB) 记录解析非常复杂，trust-dns 客户端通常会执行这个过程。
+    // 手动实现时，我们通常直接查 A/AAAA 记录来获取连接 IP。
+    // 如果需要完整的 HTTPS 记录解析，需要更复杂的逻辑来处理 SVCB 记录中的 Hint。
+
+    Ok(ips)
 }
 
 // --- 5. 兼容性：DoH A/AAAA 记录查询 (RFC 8484 Binary) ---
-async fn resolve_a_aaaa_record(doh_url: &str, domain: &str, _ipv6: bool) -> Result<Vec<IpAddr>> {
-    // lookup_ip 会查找所有 A 和 AAAA 记录，和 resolve_https_record 相同
-    resolve_https_record(doh_url, domain).await
+// 在手动查询模式下，与 resolve_https_record 逻辑相似，直接查询 A/AAAA
+async fn resolve_a_aaaa_record(client: &Client, doh_url: &str, domain: &str, _ipv6: bool) -> Result<Vec<IpAddr>> {
+    resolve_https_record(client, doh_url, domain).await
 }
 
-// --- Helper: DoH 解析器设置 (使用 trust-dns) ---
-// 此函数将配置 trust-dns-resolver 使用指定的 DoH URL
-async fn setup_doh_resolver(doh_url: &str) -> Result<TokioAsyncResolver> {
-    // 1. 解析 DoH URL，获取主机名 (用于 SNI 和 IP 解析)
-    let doh_uri = doh_url.parse::<Uri>().context("Invalid DoH URL format")?;
-    let host = doh_uri.host().context("DoH URL must contain a host")?.to_string();
-
-    // 2. 使用系统解析器查找 DoH 服务器的 IP 地址
-    let doh_server_socket_addrs: Vec<SocketAddr> = tokio::net::lookup_host((host.as_str(), 443))
-        .await
-        .context(format!("Failed to resolve DoH server host: {}", host))?
-        .collect();
-
-    let doh_server_ip = doh_server_socket_addrs
-        .first()
-        .context("No IP found for DoH server")?
-        .ip();
-
-    // 3. 配置 trust-dns-resolver
-    let mut config = ResolverConfig::new();
-    config.add_name_server(NameServerConfig {
-        socket_addr: SocketAddr::new(doh_server_ip, 443),
-        protocol: Protocol::Https,
-        tls_dns_name: Some(host.clone()),
-        tls_config: None,
-        bind_addr: None,
-        trust_negative_responses: true,
-    });
-
-    // 4. 创建解析器 (TokioAsyncResolver::tokio 不返回 Result，直接使用)
-    let resolver = TokioAsyncResolver::tokio(config, ResolverOpts::default());
-
-    Ok(resolver)
-}
 
 // --- 7. HTTP/3 连通性测试 ---
 async fn test_connectivity(task: InputTask, ip: IpAddr, dns_source: String) -> TestResult {
@@ -224,11 +238,13 @@ impl TestResult {
 // --- 8. 主程序入口 ---
 #[tokio::main]
 async fn main() -> Result<()> {
-    // 仅用于 HTTP/3 连接测试的客户端
-    let _http3_test_client = Client::builder()
+    // 专门用于 DNS 查询的标准 HTTP 客户端
+    let dns_client = Client::builder()
         .use_rustls_tls()
+        .timeout(std::time::Duration::from_secs(5))
+        .no_proxy()
         .build()
-        .expect("Failed to create HTTP/3 test client");
+        .expect("Failed to create DNS client");
 
     // 示例输入 JSON：演示了如何使用不同的域名进行解析和测试
     let input_json = r#"
@@ -309,8 +325,8 @@ async fn main() -> Result<()> {
         // 根据解析模式选择解析方法
         match task.resolve_mode.as_str() {
             "https" => {
-                // 使用 HTTPS 记录查询 (现在是 RFC 8484 二进制 DoH)
-                match resolve_https_record(&task.doh_url, &task.doh_resolve_domain).await {
+                // 使用 HTTPS 记录查询 (现在是手动 RFC 8484 二进制 DoH)
+                match resolve_https_record(&dns_client, &task.doh_url, &task.doh_resolve_domain).await {
                     Ok(ips) => {
                         if ips.is_empty() {
                             println!("    [!] 未找到 IP");
@@ -340,9 +356,9 @@ async fn main() -> Result<()> {
                 }
             },
             "a_aaaa" => {
-                // 使用 A/AAAA 记录查询 (现在是 RFC 8484 二进制 DoH)
+                // 使用 A/AAAA 记录查询 (现在是手动 RFC 8484 二进制 DoH)
                 let resolve_ipv6 = task.prefer_ipv6.unwrap_or(false);
-                match resolve_a_aaaa_record(&task.doh_url, &task.doh_resolve_domain, resolve_ipv6).await {
+                match resolve_a_aaaa_record(&dns_client, &task.doh_url, &task.doh_resolve_domain, resolve_ipv6).await {
                     Ok(ips) => {
                         if ips.is_empty() {
                             println!("    [!] 未找到IP地址");
