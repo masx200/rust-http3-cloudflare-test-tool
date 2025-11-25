@@ -84,8 +84,8 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
         .await
         .context("Failed to parse DNS JSON")?;
 
-    // Use lowercase status if present, otherwise use uppercase (for different DoH providers)
-    let final_status = resp.status.or(resp.Status).unwrap_or(0);
+    // Use optional Status (Google) if present, otherwise fall back to status (AdGuard/default)
+    let final_status = resp.Status.unwrap_or(resp.status);
 
     if final_status != 0 {
         return Err(anyhow::anyhow!("DNS query returned non-zero status: {}", final_status));
@@ -138,8 +138,8 @@ async fn resolve_a_aaaa_record(client: &Client, doh_url: &str, domain: &str, ipv
         .await
         .context("Failed to parse DNS JSON")?;
 
-    // Use lowercase status if present, otherwise use uppercase (for different DoH providers)
-    let final_status = resp.status.or(resp.Status).unwrap_or(0);
+    // Use optional Status (Google) if present, otherwise fall back to status (AdGuard/default)
+    let final_status = resp.Status.unwrap_or(resp.status);
 
     if final_status != 0 {
         return Err(anyhow::anyhow!("DNS query returned non-zero status: {}", final_status));
