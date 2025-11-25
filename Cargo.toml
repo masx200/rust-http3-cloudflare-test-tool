@@ -7,8 +7,8 @@ description = "A Rust tool for testing Cloudflare HTTP/3 connectivity with DNS o
 license = "MIT"
 
 [dependencies]
-# HTTP 客户端 (包含 rustls, json 特性)
-reqwest = { version = "0.12", features = ["json", "rustls-tls", "gzip", "brotli"] }
+# HTTP 客户端 (包含 HTTP3, rustls, json 特性)
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "http3", "gzip", "brotli"] }
 
 # 异步运行时
 tokio = { version = "1", features = ["full"] }
