@@ -1,18 +1,14 @@
 use anyhow::{Context, Result};
 use reqwest::{Client, Version};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet; // 新增: 用于存储去重后的 IP
+use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::time::Instant;
 
 // 引入 trust-dns 协议相关模块用于 RFC 8484 二进制 DNS 消息
-use rand::Rng;
 use trust_dns_resolver::proto::op::{Message, Query};
 use trust_dns_resolver::proto::rr::{RecordType, Name, RData};
-use trust_dns_resolver::proto::serialize::binary::BinEncodable;
-// 引入 SVCB 记录解析所需的组件 (用于解析 ipv4hint/ipv6hint)
-use trust_dns_resolver::proto::rr::rdata::svcb::{SvcParamKey, SVCB};
 
 // --- 1. 输入配置 ---
 // CLAUDE.md: "程序接受JSON格式的配置"
