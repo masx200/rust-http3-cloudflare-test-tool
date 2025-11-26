@@ -1,14 +1,20 @@
-非常抱歉！你是完全正确的。我忽略了你 curl 命令中通过 xget... 进行 **DoH (DNS over HTTPS)** 解析这一关键步骤。
+非常抱歉！你是完全正确的。我忽略了你 curl 命令中通过 xget... 进行 **DoH (DNS
+over HTTPS)** 解析这一关键步骤。
 
-在网络环境复杂（存在 DNS 污染）的情况下，直接解析域名得到的 IP 往往是错误的。**必须使用可信的远程 DNS（如 Google DNS）获取真实 IP，然后再指定 IP 进行连接测试。**
+在网络环境复杂（存在 DNS 污染）的情况下，直接解析域名得到的 IP
+往往是错误的。**必须使用可信的远程 DNS（如 Google DNS）获取真实 IP，然后再指定
+IP 进行连接测试。**
 
 下面是修正后的 Rust 完整方案。
 
 ### **核心逻辑变更**
 
-1. **新增 resolve_ip 步骤**：在测试连接前，先请求你提供的 https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/... 接口。
-2. **解析 Google DNS JSON 格式**：该接口返回的是标准的 Google DoH JSON 格式，我们需要提取其中的 Answer 字段中的 IP。
-3. **动态构建测试任务**：根据解析到的 IP 列表，生成具体的测试目标，再传给 reqwest 进行 resolve_to_addrs 绑定测试。
+1. **新增 resolve_ip 步骤**：在测试连接前，先请求你提供的
+   https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/... 接口。
+2. **解析 Google DNS JSON 格式**：该接口返回的是标准的 Google DoH JSON
+   格式，我们需要提取其中的 Answer 字段中的 IP。
+3. **动态构建测试任务**：根据解析到的 IP 列表，生成具体的测试目标，再传给
+   reqwest 进行 resolve_to_addrs 绑定测试。
 
 ### **依赖配置 (Cargo.toml)**
 
@@ -16,76 +22,77 @@
 
 Ini, TOML
 
-\[dependencies\]  
-reqwest \= { version \= "0.12", features \= \["json", "rustls-tls", "http3"\] }  
-tokio \= { version \= "1", features \= \["full"\] }  
-serde \= { version \= "1", features \= \["derive"\] }  
-serde_json \= "1"  
+\[dependencies\]\
+reqwest \= { version \= "0.12", features \= \["json", "rustls-tls", "http3"\] }\
+tokio \= { version \= "1", features \= \["full"\] }\
+serde \= { version \= "1", features \= \["derive"\] }\
+serde_json \= "1"\
 anyhow \= "1"
 
 ### **完整代码 (src/main.rs)**
 
 Rust
 
-use anyhow::{Context, Result};  
-use reqwest::{Client, Version};  
-use serde::{Deserialize, Serialize};  
-use std::net::SocketAddr;  
-use std::sync::Arc;  
+use anyhow::{Context, Result};\
+use reqwest::{Client, Version};\
+use serde::{Deserialize, Serialize};\
+use std::net::SocketAddr;\
+use std::sync::Arc;\
 use std::time::Instant;
 
-// \--- 1\. 输入数据结构 \---  
-\#\[derive(Debug, Deserialize, Clone)\]  
-struct InputTask {  
- domain: String,  
- // 如果没有提供 IP，则通过远程 DNS 解析  
- ip: Option\<String\>,  
- // 指定解析类型: "ipv4" 或 "ipv6" (当 ip 为空时生效)  
- ip_version: Option\<String\>,  
- port: u16,  
- alpn: String, // "h3" 或 "h2"  
+// \--- 1\. 输入数据结构 \---\
+\#\[derive(Debug, Deserialize, Clone)\]\
+struct InputTask {\
+domain: String,\
+// 如果没有提供 IP，则通过远程 DNS 解析\
+ip: Option\<String\>,\
+// 指定解析类型: "ipv4" 或 "ipv6" (当 ip 为空时生效)\
+ip_version: Option\<String\>,\
+port: u16,\
+alpn: String, // "h3" 或 "h2"\
 }
 
-// \--- 2\. Google DoH 响应结构 (用于解析 DNS JSON) \---  
-\#\[derive(Debug, Deserialize)\]  
-struct DoHResponse {  
- \#\[serde(rename \= "Status")\]  
- status: i32,  
- \#\[serde(rename \= "Answer")\]  
- answer: Option\<Vec\<DoHAnswer\>\>,  
+// \--- 2\. Google DoH 响应结构 (用于解析 DNS JSON) \---\
+\#\[derive(Debug, Deserialize)\]\
+struct DoHResponse {\
+\#\[serde(rename \= "Status")\]\
+status: i32,\
+\#\[serde(rename \= "Answer")\]\
+answer: Option\<Vec\<DoHAnswer\>\>,\
 }
 
-\#\[derive(Debug, Deserialize)\]  
-struct DoHAnswer {  
- name: String,  
- \#\[serde(rename \= "type")\]  
- record_type: u16,  
- data: String, // 这里就是 IP 地址  
+\#\[derive(Debug, Deserialize)\]\
+struct DoHAnswer {\
+name: String,\
+\#\[serde(rename \= "type")\]\
+record_type: u16,\
+data: String, // 这里就是 IP 地址\
 }
 
-// \--- 3\. 输出结果结构 \---  
-\#\[derive(Debug, Serialize)\]  
-struct TestResult {  
- domain: String,  
- resolved_ip: String,  
- port: u16,  
- success: bool,  
- status_code: Option\<u16\>,  
- protocol_version: String,  
- latency_ms: Option\<u64\>,  
- dns_source: String, // "Manual Input" 或 "Remote DoH"  
- error_msg: Option\<String\>,  
+// \--- 3\. 输出结果结构 \---\
+\#\[derive(Debug, Serialize)\]\
+struct TestResult {\
+domain: String,\
+resolved_ip: String,\
+port: u16,\
+success: bool,\
+status_code: Option\<u16\>,\
+protocol_version: String,\
+latency_ms: Option\<u64\>,\
+dns_source: String, // "Manual Input" 或 "Remote DoH"\
+error_msg: Option\<String\>,\
 }
 
-// \--- 4\. 远程 DNS 解析函数 \---  
-// 使用你提供的特定代理 URL 进行解析  
-async fn resolve_via_doh(client: \&Client, domain: &str, ipv6: bool) \-\> Result\<Vec\<String\>\> {  
- let type_param \= if ipv6 { "AAAA" } else { "A" };  
- // Google DNS JSON API 格式  
- let dns_url \= format\!(  
- "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/resolve?name={}\&type={}",  
- domain, type_param  
- );
+// \--- 4\. 远程 DNS 解析函数 \---\
+// 使用你提供的特定代理 URL 进行解析\
+async fn resolve_via_doh(client: \&Client, domain: &str, ipv6: bool) \-\>
+Result\<Vec\<String\>\> {\
+let type_param \= if ipv6 { "AAAA" } else { "A" };\
+// Google DNS JSON API 格式\
+let dns_url \= format\!(\
+"https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/resolve?name={}\&type={}",\
+domain, type_param\
+);
 
     let resp \= client.get(\&dns\_url)
         .send()
@@ -112,9 +119,10 @@ async fn resolve_via_doh(client: \&Client, domain: &str, ipv6: bool) \-\> Result
 
 }
 
-// \--- 5\. 连通性测试函数 \---  
-async fn run_connectivity_test(client: Client, domain: String, ip: String, port: u16, alpn: String, dns_source: String) \-\> TestResult {  
- let url \= format\!("https://{}:{}/meta", domain, port);
+// \--- 5\. 连通性测试函数 \---\
+async fn run_connectivity_test(client: Client, domain: String, ip: String, port:
+u16, alpn: String, dns_source: String) \-\> TestResult {\
+let url \= format\!("https://{}:{}/meta", domain, port);
 
     let addr\_str \= format\!("{}:{}", ip, port);
     let socket\_addr: Result\<SocketAddr, \_\> \= addr\_str.parse();
@@ -192,11 +200,11 @@ async fn run_connectivity_test(client: Client, domain: String, ip: String, port:
 
 }
 
-// \--- 6\. 主逻辑 \---  
-\#\[tokio::main\]  
-async fn main() {  
- // 基础 HTTP 客户端用于请求 DNS  
- let dns_client \= Client::builder().build().unwrap();
+// \--- 6\. 主逻辑 \---\
+\#\[tokio::main\]\
+async fn main() {\
+// 基础 HTTP 客户端用于请求 DNS\
+let dns_client \= Client::builder().build().unwrap();
 
     // 模拟输入 JSON
     // 场景1: 只有域名，需要通过远程 DNS 获取 IPv4
@@ -298,43 +306,50 @@ async fn main() {
 ### **代码改进点说明**
 
 1. **防污染解析 (resolve_via_doh)**:
-   - 这个函数现在显式调用了你提供的 URL：https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/resolve。
-   - 它会根据 ip_version 输入参数决定是请求 type=A (IPv4) 还是 type=AAAA (IPv6)。**注意**：虽然 curl 示例中用了 type=HTTPS，但为了测试连通性，我们需要明确的 IP 地址，解析 A/AAAA 记录是最直接有效的方法。
+   - 这个函数现在显式调用了你提供的
+     URL：https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/resolve。
+   - 它会根据 ip_version 输入参数决定是请求 type=A (IPv4) 还是 type=AAAA
+     (IPv6)。**注意**：虽然 curl 示例中用了
+     type=HTTPS，但为了测试连通性，我们需要明确的 IP 地址，解析 A/AAAA
+     记录是最直接有效的方法。
 2. **输入逻辑增强**:
    - 现在的 JSON 输入允许 ip 为 null。如果为 null，程序会自动去调用远程 DNS。
    - 如果 ip 不为 null，则跳过 DNS，直接测试（手动指定模式）。
 3. **结果溯源**:
-   - 输出结果中增加了 dns_source 字段，告诉你这个测试用的 IP 是你手动输入的，还是从远程 DoH 解析来的。
+   - 输出结果中增加了 dns_source 字段，告诉你这个测试用的 IP
+     是你手动输入的，还是从远程 DoH 解析来的。
 
 ### **运行结果预览**
 
-当你输入 ip: null 且 ip_version: "ipv4" 时，程序会先去请求远程接口拿到类似 162.159.x.x 的真实 IP，然后强制绑定该 IP 进行 H3 测试。
+当你输入 ip: null 且 ip_version: "ipv4" 时，程序会先去请求远程接口拿到类似
+162.159.x.x 的真实 IP，然后强制绑定该 IP 进行 H3 测试。
 
 JSON
 
-\[  
- {  
- "domain": "speed.cloudflare.com",  
- "resolved_ip": "162.159.138.218",  
- "port": 443,  
- "success": true,  
- "status_code": 200,  
- "protocol_version": "h3",  
- "latency_ms": 152,  
- "dns_source": "Remote DoH",  
- "error_msg": null  
- },  
- {  
- "domain": "speed.cloudflare.com",  
- "resolved_ip": "2606:4700:7::da",  
- "port": 443,  
- "success": true,  
- "status_code": 200,  
- "protocol_version": "h3",  
- "latency_ms": 140,  
- "dns_source": "Remote DoH",  
- "error_msg": null  
- }  
+\[\
+{\
+"domain": "speed.cloudflare.com",\
+"resolved_ip": "162.159.138.218",\
+"port": 443,\
+"success": true,\
+"status_code": 200,\
+"protocol_version": "h3",\
+"latency_ms": 152,\
+"dns_source": "Remote DoH",\
+"error_msg": null\
+},\
+{\
+"domain": "speed.cloudflare.com",\
+"resolved_ip": "2606:4700:7::da",\
+"port": 443,\
+"success": true,\
+"status_code": 200,\
+"protocol_version": "h3",\
+"latency_ms": 140,\
+"dns_source": "Remote DoH",\
+"error_msg": null\
+}\
 \]
 
-现在这个工具就具备了**抗 DNS 污染**的能力，能够真实反映 Cloudflare 优选 IP 的连通性。
+现在这个工具就具备了**抗 DNS 污染**的能力，能够真实反映 Cloudflare 优选 IP
+的连通性。

@@ -1,11 +1,15 @@
-你提出了一个非常专业的、针对 CDN/WAF 或优化网络连接测试的关键点。在测试优选 IP 时，**TLS SNI (Server Name Indication)** 和 **HTTP Host Header** 确实必须独立于实际连接的 IP 地址进行设置。
+你提出了一个非常专业的、针对 CDN/WAF 或优化网络连接测试的关键点。在测试优选 IP
+时，**TLS SNI (Server Name Indication)** 和 **HTTP Host Header**
+确实必须独立于实际连接的 IP 地址进行设置。
 
 这是因为 Cloudflare 这类 CDN 服务器在同一个 IP 地址上托管了成千上万的域名。
 
-- **SNI (TLS ServerName):** 告诉服务器应该使用哪个域名的证书进行 TLS 握手。如果 SNI 错误，握手就会失败（证书不匹配）。
+- **SNI (TLS ServerName):** 告诉服务器应该使用哪个域名的证书进行 TLS 握手。如果
+  SNI 错误，握手就会失败（证书不匹配）。
 - **Host Header:** 告诉服务器或后端程序将请求路由到哪个虚拟主机。
 
-我将对程序进行升级，使这三个关键参数（**DoH 解析域名**、**SNI 域名**、**Host Header 值**）可以独立配置。
+我将对程序进行升级，使这三个关键参数（**DoH 解析域名**、**SNI 域名**、**Host
+Header 值**）可以独立配置。
 
 ### **1\. 更新 InputTask 结构**
 
@@ -13,76 +17,80 @@
 
 Rust
 
-// src/main.rs \- 修改 InputTask  
-\#\[derive(Debug, Deserialize, Clone)\]  
-struct InputTask {  
- doh_resolve_domain: String, // 1\. 用于 DoH 查询，获取 IP Hint 的域名  
- test_sni_host: String, // 2\. 用于 TLS SNI 的域名  
- test_host_header: String, // 3\. 用于 HTTP Host Header 的值  
- doh_url: String,  
- port: u16,  
- prefer_ipv6: Option\<bool\>,  
+// src/main.rs \- 修改 InputTask\
+\#\[derive(Debug, Deserialize, Clone)\]\
+struct InputTask {\
+doh_resolve_domain: String, // 1\. 用于 DoH 查询，获取 IP Hint 的域名\
+test_sni_host: String, // 2\. 用于 TLS SNI 的域名\
+test_host_header: String, // 3\. 用于 HTTP Host Header 的值\
+doh_url: String,\
+port: u16,\
+prefer_ipv6: Option\<bool\>,\
 }
 
 ### **2\. 更新 test_connectivity 逻辑**
 
 关键在于：
 
-1. **URL 构造**: reqwest (以及其底层的 rustls) 会将 URL 中的域名作为 **SNI** 的值发送出去。因此，我们用 test_sni_host 来构造 URL。
-2. **Host Header**: 显式地使用 .header("Host", ...) 来覆盖 reqwest 默认生成的 Host Header。
+1. **URL 构造**: reqwest (以及其底层的 rustls) 会将 URL 中的域名作为 **SNI**
+   的值发送出去。因此，我们用 test_sni_host 来构造 URL。
+2. **Host Header**: 显式地使用 .header("Host", ...) 来覆盖 reqwest 默认生成的
+   Host Header。
 3. **IP 绑定**: 继续使用 resolve_to_addrs 强制连接到 DoH 解析到的 IP。
 
 #### **完整更新后的 src/main.rs**
 
-（hickory-proto 和 DNS 解析逻辑保持不变，只更新了 InputTask 和 test_connectivity 函数）
+（hickory-proto 和 DNS 解析逻辑保持不变，只更新了 InputTask 和 test_connectivity
+函数）
 
 Rust
 
-use anyhow::{Context, Result};  
-use reqwest::{Client, Version};  
-use serde::{Deserialize, Serialize};  
-use std::net::{IpAddr, SocketAddr};  
-use std::time::Instant;  
+use anyhow::{Context, Result};\
+use reqwest::{Client, Version};\
+use serde::{Deserialize, Serialize};\
+use std::net::{IpAddr, SocketAddr};\
+use std::time::Instant;\
 use std::str::FromStr;
 
-use hickory_proto::op::{Message, Query, ResponseCode};  
-use hickory_proto::rr::{Name, RecordType, RData};  
+use hickory_proto::op::{Message, Query, ResponseCode};\
+use hickory_proto::rr::{Name, RecordType, RData};\
 use hickory_proto::rr::rdata::svcb::{SvcParamKey, IpHint};
 
-// \--- 1\. 输入配置 (已更新) \---  
-\#\[derive(Debug, Deserialize, Clone)\]  
-struct InputTask {  
- doh_resolve_domain: String, // 1\. 用于 DoH 查询，获取 IP Hint 的域名  
- test_sni_host: String, // 2\. 用于 TLS SNI 的域名  
- test_host_header: String, // 3\. 用于 HTTP Host Header 的值  
- doh_url: String,  
- port: u16,  
- prefer_ipv6: Option\<bool\>,  
+// \--- 1\. 输入配置 (已更新) \---\
+\#\[derive(Debug, Deserialize, Clone)\]\
+struct InputTask {\
+doh_resolve_domain: String, // 1\. 用于 DoH 查询，获取 IP Hint 的域名\
+test_sni_host: String, // 2\. 用于 TLS SNI 的域名\
+test_host_header: String, // 3\. 用于 HTTP Host Header 的值\
+doh_url: String,\
+port: u16,\
+prefer_ipv6: Option\<bool\>,\
 }
 
-// \--- 2\. 输出结果 (保持不变) \---  
-\#\[derive(Debug, Serialize)\]  
-struct TestResult {  
- domain_used: String, // DoH 解析的域名  
- target_ip: String,  
- ip_version: String,  
- sni_host: String, // 实际使用的 SNI  
- host_header: String, // 实际使用的 Host header  
- success: bool,  
- status_code: Option\<u16\>,  
- protocol: String,  
- latency_ms: Option\<u64\>,  
- server_header: Option\<String\>,  
- error_msg: Option\<String\>,  
+// \--- 2\. 输出结果 (保持不变) \---\
+\#\[derive(Debug, Serialize)\]\
+struct TestResult {\
+domain_used: String, // DoH 解析的域名\
+target_ip: String,\
+ip_version: String,\
+sni_host: String, // 实际使用的 SNI\
+host_header: String, // 实际使用的 Host header\
+success: bool,\
+status_code: Option\<u16\>,\
+protocol: String,\
+latency_ms: Option\<u64\>,\
+server_header: Option\<String\>,\
+error_msg: Option\<String\>,\
 }
 
-// \--- 3\. DoH 二进制查询与解析 (保持不变) \---  
-async fn resolve_https_binary(client: \&Client, doh_url: &str, domain: &str) \-\> Result\<Vec\<IpAddr\>\> {  
- let mut query_msg \= Message::new();  
- let name \= Name::from_str(domain).context("Invalid domain name format")?;  
- let query \= Query::query(name.clone(), RecordType::HTTPS);  
- query_msg.add_query(query);  
- let query_bytes \= query_msg.to_vec().context("Failed to serialize DNS query")?;
+// \--- 3\. DoH 二进制查询与解析 (保持不变) \---\
+async fn resolve_https_binary(client: \&Client, doh_url: &str, domain: &str)
+\-\> Result\<Vec\<IpAddr\>\> {\
+let mut query_msg \= Message::new();\
+let name \= Name::from_str(domain).context("Invalid domain name format")?;\
+let query \= Query::query(name.clone(), RecordType::HTTPS);\
+query_msg.add_query(query);\
+let query_bytes \= query_msg.to_vec().context("Failed to serialize DNS query")?;
 
     let resp \= client.post(doh\_url)
         .header("Content-Type", "application/dns-message")
@@ -123,10 +131,10 @@ async fn resolve_https_binary(client: \&Client, doh_url: &str, domain: &str) \-\
 
 }
 
-// \--- 4\. HTTP/3 连通性测试 (已更新) \---  
-async fn test_connectivity(task: InputTask, ip: IpAddr) \-\> TestResult {  
- // 关键点 1: URL 决定 SNI。我们使用 test_sni_host 构造 URL。  
- let url \= format\!("https://{}:{}/", task.test_sni_host, task.port);
+// \--- 4\. HTTP/3 连通性测试 (已更新) \---\
+async fn test_connectivity(task: InputTask, ip: IpAddr) \-\> TestResult {\
+// 关键点 1: URL 决定 SNI。我们使用 test_sni_host 构造 URL。\
+let url \= format\!("https://{}:{}/", task.test_sni_host, task.port);
 
     let socket\_addr \= SocketAddr::new(ip, task.port);
     let ip\_ver \= if ip.is\_ipv6() { "IPv6" } else { "IPv4" };
@@ -186,28 +194,29 @@ async fn test_connectivity(task: InputTask, ip: IpAddr) \-\> TestResult {
 
 }
 
-impl TestResult {  
- fn fail(task: \&InputTask, ip: &str, ver: &str, msg: String) \-\> Self {  
- TestResult {  
- domain_used: task.doh_resolve_domain.clone(),  
- target_ip: ip.to_string(),  
- ip_version: ver.to_string(),  
- sni_host: task.test_sni_host.clone(),  
- host_header: task.test_host_header.clone(),  
- success: false,  
- status_code: None,  
- protocol: "none".to_string(),  
- latency_ms: None,  
- server_header: None,  
- error_msg: Some(msg),  
- }  
- }  
+impl TestResult {\
+fn fail(task: \&InputTask, ip: &str, ver: &str, msg: String) \-\> Self {\
+TestResult {\
+domain_used: task.doh_resolve_domain.clone(),\
+target_ip: ip.to_string(),\
+ip_version: ver.to_string(),\
+sni_host: task.test_sni_host.clone(),\
+host_header: task.test_host_header.clone(),\
+success: false,\
+status_code: None,\
+protocol: "none".to_string(),\
+latency_ms: None,\
+server_header: None,\
+error_msg: Some(msg),\
+}\
+}\
 }
 
-// \--- 5\. 主程序 \---  
-\#\[tokio::main\]  
-async fn main() {  
- let doh_http_client \= Client::builder().use_rustls_tls().build().expect("Failed to create DoH client");
+// \--- 5\. 主程序 \---\
+\#\[tokio::main\]\
+async fn main() {\
+let doh_http_client \= Client::builder().use_rustls_tls().build().expect("Failed
+to create DoH client");
 
     // 示例输入:
     // 1\. 使用 A 域名获取优选 IP
@@ -284,4 +293,5 @@ async fn main() {
 
 }
 
-现在，你的测试工具拥有了完整的、专业的网络身份伪装和连通性测试能力，可以精确地测试 Cloudflare 等 CDN 提供的优选 IP 上的特定虚拟主机服务。
+现在，你的测试工具拥有了完整的、专业的网络身份伪装和连通性测试能力，可以精确地测试
+Cloudflare 等 CDN 提供的优选 IP 上的特定虚拟主机服务。

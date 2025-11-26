@@ -1,4 +1,5 @@
-好的，这是根据您的所有高级需求（包括二进制 DoH 解析、H3 测试，以及独立的 SNI/Host Header 设置）整合而成的完整版 main.rs 文件。
+好的，这是根据您的所有高级需求（包括二进制 DoH 解析、H3 测试，以及独立的
+SNI/Host Header 设置）整合而成的完整版 main.rs 文件。
 
 ### **1\. 确保 Cargo.toml 配置正确**
 
@@ -6,75 +7,77 @@
 
 Ini, TOML
 
-\[package\]  
-name \= "cf-h3-scanner"  
-version \= "0.1.0"  
+\[package\]\
+name \= "cf-h3-scanner"\
+version \= "0.1.0"\
 edition \= "2021"
 
-\[dependencies\]  
-\# HTTP 客户端 (包含 H3, rustls, json 特性)  
-reqwest \= { version \= "0.12", features \= \["json", "rustls-tls", "http3", "gzip", "brotli"\] }  
-\# 异步运行时  
-tokio \= { version \= "1", features \= \["full"\] }  
-\# 序列化/反序列化  
-serde \= { version \= "1", features \= \["derive"\] }  
-serde_json \= "1"  
-\# 错误处理  
-anyhow \= "1"  
-\# 专业 DNS 协议库 (用于解析二进制 DNS 消息)  
+\[dependencies\]\
+\# HTTP 客户端 (包含 H3, rustls, json 特性)\
+reqwest \= { version \= "0.12", features \= \["json", "rustls-tls", "http3",
+"gzip", "brotli"\] }\
+\# 异步运行时\
+tokio \= { version \= "1", features \= \["full"\] }\
+\# 序列化/反序列化\
+serde \= { version \= "1", features \= \["derive"\] }\
+serde_json \= "1"\
+\# 错误处理\
+anyhow \= "1"\
+\# 专业 DNS 协议库 (用于解析二进制 DNS 消息)\
 hickory-proto \= "0.24"
 
 ### **2\. 完整 src/main.rs 代码**
 
 Rust
 
-use anyhow::{Context, Result};  
-use reqwest::{Client, Version};  
-use serde::{Deserialize, Serialize};  
-use std::net::{IpAddr, SocketAddr};  
-use std::time::Instant;  
-use std::str::FromStr;  
+use anyhow::{Context, Result};\
+use reqwest::{Client, Version};\
+use serde::{Deserialize, Serialize};\
+use std::net::{IpAddr, SocketAddr};\
+use std::time::Instant;\
+use std::str::FromStr;\
 use std::collections::HashSet;
 
-// 引入 hickory-proto 处理二进制 DNS  
-use hickory_proto::op::{Message, Query, ResponseCode};  
-use hickory_proto::rr::{Name, RecordType, RData};  
+// 引入 hickory-proto 处理二进制 DNS\
+use hickory_proto::op::{Message, Query, ResponseCode};\
+use hickory_proto::rr::{Name, RecordType, RData};\
 use hickory_proto::rr::rdata::svcb::{SvcParamKey, IpHint};
 
-// \--- 1\. 输入配置 (关键: 三个独立域名参数) \---  
-\#\[derive(Debug, Deserialize, Clone)\]  
-struct InputTask {  
- doh_resolve_domain: String, // 1\. 用于 DoH 查询，获取 IP Hint 的域名  
- test_sni_host: String, // 2\. 用于 TLS SNI 的域名  
- test_host_header: String, // 3\. 用于 HTTP Host Header 的值  
- doh_url: String, // DoH 解析服务的 URL  
- port: u16, // 目标端口，通常是 443  
- prefer_ipv6: Option\<bool\>, // 仅测试 IPv6 Hint (true) 或 IPv4 Hint (false)  
+// \--- 1\. 输入配置 (关键: 三个独立域名参数) \---\
+\#\[derive(Debug, Deserialize, Clone)\]\
+struct InputTask {\
+doh_resolve_domain: String, // 1\. 用于 DoH 查询，获取 IP Hint 的域名\
+test_sni_host: String, // 2\. 用于 TLS SNI 的域名\
+test_host_header: String, // 3\. 用于 HTTP Host Header 的值\
+doh_url: String, // DoH 解析服务的 URL\
+port: u16, // 目标端口，通常是 443\
+prefer_ipv6: Option\<bool\>, // 仅测试 IPv6 Hint (true) 或 IPv4 Hint (false)\
 }
 
-// \--- 2\. 输出结果 \---  
-\#\[derive(Debug, Serialize)\]  
-struct TestResult {  
- domain_used: String, // DoH 解析的域名  
- target_ip: String,  
- ip_version: String,  
- sni_host: String, // 实际使用的 SNI  
- host_header: String, // 实际使用的 Host header  
- success: bool,  
- status_code: Option\<u16\>,  
- protocol: String, // 实际协商的协议 (h3, h2, http/1.1)  
- latency_ms: Option\<u64\>,  
- server_header: Option\<String\>,  
- error_msg: Option\<String\>,  
+// \--- 2\. 输出结果 \---\
+\#\[derive(Debug, Serialize)\]\
+struct TestResult {\
+domain_used: String, // DoH 解析的域名\
+target_ip: String,\
+ip_version: String,\
+sni_host: String, // 实际使用的 SNI\
+host_header: String, // 实际使用的 Host header\
+success: bool,\
+status_code: Option\<u16\>,\
+protocol: String, // 实际协商的协议 (h3, h2, http/1.1)\
+latency_ms: Option\<u64\>,\
+server_header: Option\<String\>,\
+error_msg: Option\<String\>,\
 }
 
-// \--- 3\. 核心：DoH 二进制查询与解析 \---  
-async fn resolve_https_binary(client: \&Client, doh_url: &str, domain: &str) \-\> Result\<Vec\<IpAddr\>\> {  
- // 3.1 构建 DNS 查询消息 (Question: Type 65 \- HTTPS)  
- let mut query_msg \= Message::new();  
- let name \= Name::from_str(domain).context("Invalid domain name format")?;  
- let query \= Query::query(name.clone(), RecordType::HTTPS);  
- query_msg.add_query(query);
+// \--- 3\. 核心：DoH 二进制查询与解析 \---\
+async fn resolve_https_binary(client: \&Client, doh_url: &str, domain: &str)
+\-\> Result\<Vec\<IpAddr\>\> {\
+// 3.1 构建 DNS 查询消息 (Question: Type 65 \- HTTPS)\
+let mut query_msg \= Message::new();\
+let name \= Name::from_str(domain).context("Invalid domain name format")?;\
+let query \= Query::query(name.clone(), RecordType::HTTPS);\
+query_msg.add_query(query);
 
     // 序列化为二进制
     let query\_bytes \= query\_msg.to\_vec().context("Failed to serialize DNS query")?;
@@ -128,10 +131,10 @@ async fn resolve_https_binary(client: \&Client, doh_url: &str, domain: &str) \-\
 
 }
 
-// \--- 4\. HTTP/3 连通性测试 \---  
-async fn test_connectivity(task: InputTask, ip: IpAddr) \-\> TestResult {  
- // 关键点 1: URL 决定 SNI。reqwest 将使用 test_sni_host 作为 SNI。  
- let url \= format\!("https://{}:{}/", task.test_sni_host, task.port);
+// \--- 4\. HTTP/3 连通性测试 \---\
+async fn test_connectivity(task: InputTask, ip: IpAddr) \-\> TestResult {\
+// 关键点 1: URL 决定 SNI。reqwest 将使用 test_sni_host 作为 SNI。\
+let url \= format\!("https://{}:{}/", task.test_sni_host, task.port);
 
     let socket\_addr \= SocketAddr::new(ip, task.port);
     let ip\_ver \= if ip.is\_ipv6() { "IPv6" } else { "IPv4" };
@@ -192,29 +195,30 @@ async fn test_connectivity(task: InputTask, ip: IpAddr) \-\> TestResult {
 
 }
 
-impl TestResult {  
- fn fail(task: \&InputTask, ip: &str, ver: &str, msg: String) \-\> Self {  
- TestResult {  
- domain_used: task.doh_resolve_domain.clone(),  
- target_ip: ip.to_string(),  
- ip_version: ver.to_string(),  
- sni_host: task.test_sni_host.clone(),  
- host_header: task.test_host_header.clone(),  
- success: false,  
- status_code: None,  
- protocol: "none".to_string(),  
- latency_ms: None,  
- server_header: None,  
- error_msg: Some(msg),  
- }  
- }  
+impl TestResult {\
+fn fail(task: \&InputTask, ip: &str, ver: &str, msg: String) \-\> Self {\
+TestResult {\
+domain_used: task.doh_resolve_domain.clone(),\
+target_ip: ip.to_string(),\
+ip_version: ver.to_string(),\
+sni_host: task.test_sni_host.clone(),\
+host_header: task.test_host_header.clone(),\
+success: false,\
+status_code: None,\
+protocol: "none".to_string(),\
+latency_ms: None,\
+server_header: None,\
+error_msg: Some(msg),\
+}\
+}\
 }
 
-// \--- 5\. 主程序入口 \---  
-\#\[tokio::main\]  
-async fn main() {  
- // 用于 DoH 请求的客户端  
- let doh_http_client \= Client::builder().use_rustls_tls().build().expect("Failed to create DoH client");
+// \--- 5\. 主程序入口 \---\
+\#\[tokio::main\]\
+async fn main() {\
+// 用于 DoH 请求的客户端\
+let doh_http_client \= Client::builder().use_rustls_tls().build().expect("Failed
+to create DoH client");
 
     // 示例输入 JSON：演示了如何使用不同的域名进行解析和测试
     let input\_json \= r\#"

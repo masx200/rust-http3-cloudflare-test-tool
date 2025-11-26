@@ -6,7 +6,8 @@ This is a Rust project designed to test Cloudflare's HTTP/3 service.
 
 - Communicates with Cloudflare services using the HTTP/3 protocol
 - Supports the QUIC protocol for fast and secure network transmission
-- Can be used to test HTTP/3 support for Cloudflare Workers, Pages, and other services
+- Can be used to test HTTP/3 support for Cloudflare Workers, Pages, and other
+  services
 
 ## Requirements
 
@@ -17,21 +18,25 @@ This is a Rust project designed to test Cloudflare's HTTP/3 service.
 ## Installation and Usage
 
 1. Clone the repository:
+
 ```bash
 git clone https://gitee.com/masx200/rust-http3-cloudflare-test-tool.git
 ```
 
 2. Navigate to the project directory:
+
 ```bash
 cd rust-http3-cloudflare-test-tool
 ```
 
 3. Build the project:
+
 ```bash
 cargo build --release
 ```
 
 4. Run tests:
+
 ```bash
 cargo test
 ```
@@ -47,4 +52,5 @@ Contributions and improvements are welcome. Please follow these steps:
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+This project is licensed under the MIT License. See the LICENSE file for
+details.
