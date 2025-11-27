@@ -202,8 +202,17 @@ impl H3Tester {
         let request_url = format!("https://{}{}{}", config.target_domain, config.port, config.test_path);
         let user_agent = config.user_agent.as_deref().unwrap_or("rust-h3-test-tool/1.0");
 
+        // 创建HTTP请求
+        let http_request = http::Request::builder()
+            .method(Method::GET)
+            .uri(&request_url)
+            .header("User-Agent", user_agent)
+            .header("Host", &config.target_domain)
+            .body(())
+            .context("Failed to build HTTP request")?;
+
         let mut request = h3_request
-            .send_request(Method::GET, &request_url)
+            .send_request(http_request)
             .await
             .context("Failed to send HTTP/3 request")?;
 
