@@ -20,6 +20,8 @@ mod doh_docs_test;
 mod test_test;
 // #[cfg(test)]
 // mod main_new;
+mod h3_direct_test;
+mod main_h3_test;
 #[cfg(test)]
 mod http3_test;
 // --- 1. 输入配置 ---
