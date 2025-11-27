@@ -214,7 +214,7 @@ async fn test_connectivity(task: InputTask, ip: IpAddr, dns_source: String) -> T
     let client_build = Client::builder()
         // 关键点 2: 强制 IP 连接 (将 test_sni_host 解析到特定的 IP)
         .resolve_to_addrs(&task.test_sni_host, &[socket_addr])
-        .danger_accept_invalid_certs(true)
+        // .danger_accept_invalid_certs(true)
         .http3_prior_knowledge() // 核心：强制使用 HTTP/3
         .timeout(std::time::Duration::from_secs(5))
         .no_proxy()

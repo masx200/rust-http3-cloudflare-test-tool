@@ -184,7 +184,7 @@ async fn test_connectivity(task: InputTask, ip: IpAddr, dns_source: String) -> T
 
     let client = match Client::builder()
         .resolve_to_addrs(&task.test_sni_host, &[socket_addr])
-        .danger_accept_invalid_certs(true)
+        // .danger_accept_invalid_certs(true)
         .timeout(std::time::Duration::from_secs(5))
         .no_proxy()
         .build()

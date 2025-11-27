@@ -364,7 +364,7 @@ async fn test_redirect_https_only_enforced_gh1312() {
     let url = format!("https://{}/yikes", server.addr());
 
     let res = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
+        // .danger_accept_invalid_certs(true)
         .use_rustls_tls()
         .https_only(true)
         .build()
