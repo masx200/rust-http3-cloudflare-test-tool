@@ -6,7 +6,37 @@ use std::net::IpAddr;
 use std::time::Instant;
 
 // 重用现有的 DNS 解析模块
-use crate::http3_test::{InputTask, TestResult, resolve_domain_with_rfc8484};
+use crate::http3_test::resolve_domain_with_rfc8484;
+
+// HTTP/3 输入任务 - 重新定义为公共结构体
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct InputTask {
+    pub doh_resolve_domain: String,
+    pub test_sni_host: String,
+    pub test_host_header: String,
+    pub doh_url: String,
+    pub port: u16,
+    pub prefer_ipv6: Option<bool>,
+    pub resolve_mode: String,
+    pub direct_ips: Option<Vec<String>>,
+}
+
+// HTTP/3 测试结果 - 重新定义为公共结构体
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TestResult {
+    pub domain_used: String,
+    pub target_ip: String,
+    pub ip_version: String,
+    pub sni_host: String,
+    pub host_header: String,
+    pub success: bool,
+    pub status_code: Option<u16>,
+    pub protocol: String,
+    pub latency_ms: Option<u64>,
+    pub server_header: Option<String>,
+    pub error_msg: Option<String>,
+    pub dns_source: String,
+}
 
 // HTTP/3 测试配置
 #[derive(Debug, Clone, Deserialize, Serialize)]

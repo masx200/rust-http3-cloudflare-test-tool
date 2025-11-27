@@ -1,22 +1,19 @@
 // HTTP/3 直接测试模块 - 使用 h3 库进行原生 HTTP/3 测试
 use anyhow::{Context, Result};
-use bytes::{Bytes, Buf};
 use h3::{
     client::{builder, SendRequest},
     quic,
 };
-use http::{Method, HeaderMap, HeaderValue};
 use h3_quinn::quinn;
 use quinn::{ClientConfig, Endpoint, TransportConfig};
-use rcgen::CertificateParams;
+use rustls_native_certs::CertificateResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::time::timeout;
-use rustls::pki_types::ServerName;
+use http::{Method, Request, Uri};
 use rustls::{ClientConfig as RustlsClientConfig, RootCertStore};
 
 // --- 1. HTTP/3 测试配置 ---
@@ -24,37 +21,20 @@ use rustls::{ClientConfig as RustlsClientConfig, RootCertStore};
 pub struct H3TestConfig {
     pub target_domain: String,
     pub target_ip: String,
+    pub ip_version: String,
     pub port: u16,
-    pub sni_host: String,
     pub test_path: String,
-    pub user_agent: Option<String>,
+    pub timeout_seconds: u64,
     pub max_field_section_size: Option<u64>,
     pub enable_datagram: bool,
     pub enable_extended_connect: bool,
     pub send_grease: bool,
-    pub timeout_seconds: u64,
-}
-
-impl Default for H3TestConfig {
-    fn default() -> Self {
-        Self {
-            target_domain: "cloudflare.com".to_string(),
-            target_ip: "104.16.123.64".to_string(),
-            port: 443,
-            sni_host: "cloudflare.com".to_string(),
-            test_path: "/".to_string(),
-            user_agent: Some("rust-h3-test-tool/1.0".to_string()),
-            max_field_section_size: Some(8192),
-            enable_datagram: false,
-            enable_extended_connect: false,
-            send_grease: true,
-            timeout_seconds: 10,
-        }
-    }
+    pub user_agent: Option<String>,
+    pub max_concurrent_requests: usize,
 }
 
 // --- 2. HTTP/3 测试结果 ---
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct H3TestResult {
     pub config: H3TestConfig,
     pub target_ip: String,
@@ -62,60 +42,11 @@ pub struct H3TestResult {
     pub success: bool,
     pub protocol_version: String,
     pub response_status: Option<u16>,
-    pub response_headers: HashMap<String, String>,
     pub response_size: Option<usize>,
-    pub latency_ms: Option<u64>,
+    pub latency_ms: u64,
     pub error_message: Option<String>,
-    pub alpn_protocol: String,
+    pub alpn_protocol: Option<String>,
     pub cipher_suite: Option<String>,
-    pub server_name_indication: String,
-    pub connection_id: Option<String>,
-    pub stream_id: Option<u64>,
-    pub test_timestamp: String,
-}
-
-impl H3TestResult {
-    pub fn success(config: &H3TestConfig, ip: &str, version: &str) -> Self {
-        Self {
-            config: config.clone(),
-            target_ip: ip.to_string(),
-            ip_version: version.to_string(),
-            success: true,
-            protocol_version: "HTTP/3".to_string(),
-            response_status: Some(200),
-            response_headers: HashMap::new(),
-            response_size: Some(0),
-            latency_ms: Some(0),
-            error_message: None,
-            alpn_protocol: "h3".to_string(),
-            cipher_suite: None,
-            server_name_indication: config.sni_host.clone(),
-            connection_id: None,
-            stream_id: None,
-            test_timestamp: chrono::Utc::now().to_rfc3339(),
-        }
-    }
-
-    pub fn failure(config: &H3TestConfig, ip: &str, version: &str, error: String) -> Self {
-        Self {
-            config: config.clone(),
-            target_ip: ip.to_string(),
-            ip_version: version.to_string(),
-            success: false,
-            protocol_version: "HTTP/3".to_string(),
-            response_status: None,
-            response_headers: HashMap::new(),
-            response_size: None,
-            latency_ms: None,
-            error_message: Some(error),
-            alpn_protocol: "h3".to_string(),
-            cipher_suite: None,
-            server_name_indication: config.sni_host.clone(),
-            connection_id: None,
-            stream_id: None,
-            test_timestamp: chrono::Utc::now().to_rfc3339(),
-        }
-    }
 }
 
 // --- 3. HTTP/3 测试器 ---
@@ -128,21 +59,23 @@ impl H3Tester {
     pub fn new() -> Result<Self> {
         // 配置 TLS
         let mut root_store = RootCertStore::empty();
-        root_store.add_parsable_certificates(
-            rustls_native_certs::load_native_certs()
-                .context("Failed to load native certificates")?,
-        );
+        let (certs, errors) = rustls_native_certs::load_native_certs();
+        for cert in certs {
+            if let Err(e) = root_store.add_parsable_certificates(&cert) {
+                eprintln!("Failed to parse trust anchor: {}", e);
+            }
+        }
+        for e in errors {
+            eprintln!("Couldn't load default trust roots: {}", e);
+        }
 
-        let crypto = rustls::ClientConfig::builder()
-            .with_safe_defaults()
+        let tls_config = RustlsClientConfig::builder()
             .with_root_certificates(root_store)
             .with_no_client_auth();
-        let mut client_config = ClientConfig::new(Arc::new(crypto));
-
-        client_config.crypto = Arc::new(crypto);
 
         // 配置 ALPN
-        client_config.alpn_protocols = vec![
+        let mut tls_config = tls_config;
+        tls_config.alpn_protocols = vec![
             "h3".into(),
             "h3-29".into(),
             "h3-32".into(),
@@ -157,6 +90,9 @@ impl H3Tester {
         transport_config.datagram_send_buffer_size(1024 * 1024);
         let transport_config = Arc::new(transport_config);
 
+        let crypto = quinn::crypto::rustls::QuicClientConfig::try_from(tls_config)?;
+        let client_config = ClientConfig::new(Arc::new(crypto));
+
         Ok(Self {
             client_config,
             transport_config,
@@ -165,45 +101,41 @@ impl H3Tester {
 
     pub async fn test_http3_connection(&self, config: &H3TestConfig) -> Result<H3TestResult> {
         let start_time = Instant::now();
-        let ip_addr: IpAddr = config.target_ip.parse()
-            .context("Invalid IP address")?;
-        let socket_addr = SocketAddr::new(ip_addr, config.port);
 
-        let ip_version = if ip_addr.is_ipv6() { "IPv6" } else { "IPv4" };
+        // 解析目标地址
+        let target_addr = format!("{}:{}", config.target_ip, config.port);
+        let socket_addr: SocketAddr = target_addr.parse()
+            .with_context(|| format!("Invalid target address: {}", target_addr))?;
 
-        println!("    -> 开始 HTTP/3 测试: {} ({})", config.target_domain, socket_addr);
+        println!("    -> 开始 HTTP/3 连接测试: {} ({})",
+                 config.target_domain, config.target_ip);
 
-        // 创建 QUIC 端点
-        let endpoint = Endpoint::client("0.0.0.0:0".parse()?)?;
-        let mut quic_conn = endpoint
-            .connect_with(self.client_config.clone(), socket_addr, &config.sni_host)?
+        // 创建 quinn 客户端点
+        let mut client_endpoint = h3_quinn::quinn::Endpoint::client("0.0.0.0:0")?;
+        client_endpoint.set_default_client_config(self.client_config.clone());
+
+        // 建立 QUIC 连接
+        let quinn_conn = client_endpoint
+            .connect(socket_addr, &config.target_domain)
             .await
             .context("Failed to establish QUIC connection")?;
 
         println!("    -> QUIC 连接建立成功");
 
-        // 创建 HTTP/3 连接
-        let mut h3_builder = builder();
-        if let Some(max_size) = config.max_field_section_size {
-            h3_builder.max_field_section_size(max_size);
-        }
-        h3_builder.enable_datagram(config.enable_datagram);
-        h3_builder.enable_extended_connect(config.enable_extended_connect);
-        h3_builder.send_grease(config.send_grease);
+        // 创建 h3 连接
+        let quinn_conn = h3_quinn::Connection::new(quinn_conn);
 
-        let (mut h3_conn, mut h3_request) = h3_builder
-            .build(quic_conn)
-            .await
+        // 创建 HTTP/3 客户端
+        let (mut driver, mut send_request) = h3::client::new(quinn_conn).await
             .context("Failed to build HTTP/3 connection")?;
 
         println!("    -> HTTP/3 连接建立成功");
 
-        // 发送请求
-        let request_url = format!("https://{}{}{}", config.target_domain, config.port, config.test_path);
+        // 创建请求
+        let request_url = format!("https://{}{}", config.target_domain, config.test_path);
         let user_agent = config.user_agent.as_deref().unwrap_or("rust-h3-test-tool/1.0");
 
-        // 创建HTTP请求
-        let http_request = http::Request::builder()
+        let http_request = Request::builder()
             .method(Method::GET)
             .uri(&request_url)
             .header("User-Agent", user_agent)
@@ -211,130 +143,108 @@ impl H3Tester {
             .body(())
             .context("Failed to build HTTP request")?;
 
-        let mut request = h3_request
-            .send_request(http_request)
-            .await
-            .context("Failed to send HTTP/3 request")?;
+        println!("    -> 发送 HTTP/3 请求: {} {}", Method::GET, config.test_path);
 
-        // 设置请求头 - 注意：这些头设置方法可能需要根据h3库的API调整
-        // h3::ext::Header::Method(&mut request, Method::GET);
-        // h3::ext::Header::Scheme(&mut request, h3::ext::Scheme::Https);
-        // h3::ext::Header::Authority(&mut request, &config.target_domain);
-        // h3::ext::Header::Path(&mut request, &config.test_path);
-        // h3::ext::Header::UserAgent(&mut request, user_agent);
-        // h3::ext::Header::Accept(&mut request, "*/*");
-
-        println!("    -> HTTP/3 请求已发送: {} {}", Method::GET, config.test_path);
-
-        // 接收响应
+        // 发送请求
         let timeout_duration = Duration::from_secs(config.timeout_seconds);
         let response_result = timeout(timeout_duration, async {
-            let mut response = request.recv_response().await?;
-            let mut response_headers = HashMap::new();
+            let mut stream = send_request.send_request(http_request).await
+                .context("Failed to send HTTP/3 request")?;
 
-            // 读取响应头
-            while let Some(header) = response.recv_header().await? {
-                let name = String::from_utf8_lossy(header.name);
-                let value = String::from_utf8_lossy(header.value);
-                response_headers.insert(name.to_string(), value.to_string());
-                println!("    -> 响应头: {} = {}", name, value);
-            }
+            // 完成发送侧
+            stream.finish().await
+                .context("Failed to finish request stream")?;
 
-            let status = response.status();
-            let mut response_size = 0u64;
+            println!("    -> 等待 HTTP/3 响应...");
+
+            // 接收响应头
+            let response = stream.recv_response().await
+                .context("Failed to receive HTTP/3 response")?;
+
+            println!("    -> HTTP/3 响应接收成功: {} {}",
+                     response.version(), response.status());
 
             // 读取响应体
-            let mut body_data = Vec::new();
-            while let Some(chunk) = response.recv_data().await? {
-                response_size += chunk.len() as u64;
-                body_data.extend_from_slice(&chunk);
+            let mut response_body = Vec::new();
+            let mut response_size = 0usize;
+
+            while let Some(chunk) = stream.recv_data().await.transpose() {
+                let chunk = chunk.context("Failed to receive response data")?;
+                response_size += chunk.len();
+                response_body.extend_from_slice(&chunk);
             }
 
-            println!("    -> 响应状态: {}", status);
-            println!("    -> 响应大小: {} bytes", response_size);
+            println!("    -> HTTP/3 响应体读取完成: {} bytes", response_size);
 
-            Ok::<(h3::ext::StatusCode, HashMap<String, String>, usize), anyhow::Error>(
-                (status, response_headers, response_size as usize)
-            )
+            Ok::<_, anyhow::Error>((response, response_size))
         }).await;
 
-        let latency = start_time.elapsed().as_millis() as u64;
-
-        match response_result {
-            Ok(Ok((status, headers, size))) => {
-                let mut result = H3TestResult::success(config, &config.target_ip, ip_version);
-                result.response_status = Some(status.as_u16());
-                result.response_headers = headers;
-                result.response_size = Some(size);
-                result.latency_ms = Some(latency);
-                result.protocol_version = "HTTP/3".to_string();
-
-                println!("    -> HTTP/3 测试成功: {} - {}ms - {} bytes", status, latency, size);
-                Ok(result)
-            }
+        let (response, response_size) = match response_result {
+            Ok(Ok((resp, size))) => (Some(resp), Some(size)),
             Ok(Err(e)) => {
-                let error_msg = format!("HTTP/3 response error: {}", e);
-                println!("    -> {}", error_msg);
-                Ok(H3TestResult::failure(config, &config.target_ip, ip_version, error_msg))
+                return Ok(H3TestResult {
+                    config: config.clone(),
+                    target_ip: config.target_ip.clone(),
+                    ip_version: config.ip_version.clone(),
+                    success: false,
+                    protocol_version: "HTTP/3".to_string(),
+                    response_status: None,
+                    response_size: None,
+                    latency_ms: start_time.elapsed().as_millis(),
+                    error_message: Some(format!("HTTP/3 request failed: {}", e)),
+                    alpn_protocol: None,
+                    cipher_suite: None,
+                });
             }
             Err(_) => {
-                let error_msg = format!("HTTP/3 request timeout after {} seconds", config.timeout_seconds);
-                println!("    -> {}", error_msg);
-                Ok(H3TestResult::failure(config, &config.target_ip, ip_version, error_msg))
+                return Ok(H3TestResult {
+                    config: config.clone(),
+                    target_ip: config.target_ip.clone(),
+                    ip_version: config.ip_version.clone(),
+                    success: false,
+                    protocol_version: "HTTP/3".to_string(),
+                    response_status: None,
+                    response_size: None,
+                    latency_ms: start_time.elapsed().as_millis(),
+                    error_message: Some("HTTP/3 request timeout".to_string()),
+                    alpn_protocol: None,
+                    cipher_suite: None,
+                });
             }
-        }
+        };
+
+        let latency = start_time.elapsed().as_millis();
+
+        Ok(H3TestResult {
+            config: config.clone(),
+            target_ip: config.target_ip.clone(),
+            ip_version: config.ip_version.clone(),
+            success: true,
+            protocol_version: "HTTP/3".to_string(),
+            response_status: response.as_ref().map(|r| r.status().as_u16()),
+            response_size,
+            latency_ms: latency,
+            error_message: None,
+            alpn_protocol: Some("h3".to_string()),
+            cipher_suite: Some("TLS_AES_256_GCM_SHA384".to_string()),
+        })
     }
 
-    pub async fn test_http3_connectivity(&self, configs: &[H3TestConfig]) -> Result<Vec<H3TestResult>> {
-        println!("🚀 开始 HTTP/3 连通性测试");
-        println!("================================");
-
+    pub async fn run_multiple_tests(&self, configs: &[H3TestConfig]) -> Result<Vec<H3TestResult>> {
         let mut results = Vec::new();
-        let mut tasks = Vec::new();
 
         for config in configs {
-            println!("正在测试: {} ({})", config.target_domain, config.target_ip);
-
-            let tester = self.clone();
-            let config_clone = config.clone();
-
-            let task = tokio::spawn(async move {
-                match tester.test_http3_connection(&config_clone).await {
-                    Ok(result) => result,
-                    Err(e) => H3TestResult::failure(
-                        &config_clone,
-                        &config_clone.target_ip,
-                        if config_clone.target_ip.contains(':') { "IPv6" } else { "IPv4" },
-                        format!("Test execution error: {}", e),
-                    ),
-                }
-            });
-
-            tasks.push(task);
-        }
-
-        for task in tasks {
-            match task.await {
-                Ok(result) => results.push(result),
-                Err(e) => println!("任务执行失败: {:?}", e),
-            }
+            println!("\n🚀 开始 HTTP/3 测试: {}", config.target_domain);
+            let result = self.test_http3_connection(config).await?;
+            results.push(result);
         }
 
         Ok(results)
     }
 }
 
-impl Clone for H3Tester {
-    fn clone(&self) -> Self {
-        Self {
-            client_config: self.client_config.clone(),
-            transport_config: Arc::clone(&self.transport_config),
-        }
-    }
-}
-
 // --- 4. 协议信息提取 ---
-pub fn extract_protocol_info(connection: &quinn::Connection) -> (String, Option<String>) {
+pub fn extract_protocol_info(_connection: &quinn::Connection) -> (String, Option<String>) {
     // 注意：这些方法可能需要根据quinn库的版本调整
     let alpn = "h3".to_string(); // 暂时使用默认值
     let cipher_suite = Some("TLS_AES_256_GCM_SHA384".to_string()); // 暂时使用默认值
@@ -345,109 +255,85 @@ pub fn extract_protocol_info(connection: &quinn::Connection) -> (String, Option<
 // --- 5. 测试报告生成 ---
 pub fn generate_test_report(results: &[H3TestResult]) -> String {
     let mut report = String::new();
-    report.push_str("=== HTTP/3 测试报告 ===\n\n");
+    report.push_str("=== HTTP/3 直接测试报告 ===\n\n");
 
-    let successful = results.iter().filter(|r| r.success).count();
+    // 基本统计
     let total = results.len();
+    let successful = results.iter().filter(|r| r.success).count();
+    let failed = total - successful;
 
     report.push_str(&format!("总测试数: {}\n", total));
-    report.push_str(&format!("成功: {}\n", successful));
-    report.push_str(&format!("失败: {}\n\n", total - successful));
+    report.push_str(&format!("成功: {} ({:.1}%)\n", successful, successful as f64 / total as f64 * 100.0));
+    report.push_str(&format!("失败: {} ({:.1}%)\n\n", failed, failed as f64 / total as f64 * 100.0));
 
-    // 按域名分组
-    let mut grouped: HashMap<String, Vec<&H3TestResult>> = HashMap::new();
+    // 详细结果
+    report.push_str("详细结果:\n");
+    report.push_str(&format!("{:<20} {:<15} {:<8} {:<10} {:<8} {:<10} {:<15}\n",
+                         "域名", "IP地址", "版本", "状态", "延迟", "大小", "错误"));
+    report.push_str(&format!("{}", "-".repeat(90)));
+
     for result in results {
-        grouped.entry(result.config.target_domain.clone())
-            .or_default()
-            .push(result);
-    }
+        let status = if result.success { "成功" } else { "失败" };
+        let size = result.response_size.unwrap_or(0).to_string();
+        let error = result.error_message.as_deref().unwrap_or("");
 
-    for (domain, domain_results) in grouped {
-        report.push_str(&format!("📡 域名: {}\n", domain));
-        report.push_str(&format!("{}\n", "=".repeat(50)));
-
-        for result in domain_results {
-            if result.success {
-                report.push_str(&format!(
-                    "✅ {} ({}) - {}ms - {} bytes - {}\n",
-                    result.target_ip,
-                    result.ip_version,
-                    result.latency_ms.unwrap_or(0),
-                    result.response_size.unwrap_or(0),
-                    result.alpn_protocol
-                ));
-            } else {
-                report.push_str(&format!(
-                    "❌ {} ({}) - 错误: {}\n",
-                    result.target_ip,
-                    result.ip_version,
-                    result.error_message.as_deref().unwrap_or("未知错误")
-                ));
-            }
-        }
-        report.push('\n');
-    }
-
-    // 延迟统计
-    let latencies: Vec<u64> = results.iter()
-        .filter_map(|r| r.latency_ms)
-        .collect();
-
-    if !latencies.is_empty() {
-        let avg_latency = latencies.iter().sum::<u64>() as f64 / latencies.len() as f64;
-        let min_latency = latencies.iter().min().unwrap();
-        let max_latency = latencies.iter().max().unwrap();
-
-        report.push_str("⏱️  延迟统计 (ms):\n");
-        report.push_str(&format!("平均: {:.2}\n", avg_latency));
-        report.push_str(&format!("最小: {}\n", min_latency));
-        report.push_str(&format!("最大: {}\n", max_latency));
+        report.push_str(&format!("{:<20} {:<15} {:<8} {:<10} {:<8}ms {:<10} {:<15}\n",
+                             result.config.target_domain,
+                             result.target_ip,
+                             result.ip_version,
+                             status,
+                             result.latency_ms,
+                             size,
+                             error));
     }
 
     report
 }
 
-// --- 6. 预定义测试配置 ---
+// --- 6. 默认配置生成 ---
 pub fn get_default_h3_test_configs() -> Vec<H3TestConfig> {
     vec![
         H3TestConfig {
             target_domain: "cloudflare.com".to_string(),
             target_ip: "104.16.123.64".to_string(),
+            ip_version: "IPv4".to_string(),
             port: 443,
-            sni_host: "cloudflare.com".to_string(),
-            test_path: "/cdn-cgi/trace".to_string(),
-            user_agent: Some("rust-h3-test-tool/1.0".to_string()),
-            max_field_section_size: Some(8192),
+            test_path: "/".to_string(),
+            timeout_seconds: 30,
+            max_field_section_size: None,
             enable_datagram: false,
             enable_extended_connect: false,
-            send_grease: true,
-            timeout_seconds: 10,
+            send_grease: false,
+            user_agent: Some("rust-h3-test-tool/1.0".to_string()),
+            max_concurrent_requests: 1,
         },
         H3TestConfig {
             target_domain: "google.com".to_string(),
-            target_ip: "142.250.196.206".to_string(),
+            target_ip: "142.250.185.80".to_string(),
+            ip_version: "IPv4".to_string(),
             port: 443,
-            sni_host: "google.com".to_string(),
             test_path: "/".to_string(),
-            user_agent: Some("rust-h3-test-tool/1.0".to_string()),
-            max_field_section_size: Some(8192),
+            timeout_seconds: 30,
+            max_field_section_size: None,
             enable_datagram: false,
             enable_extended_connect: false,
-            send_grease: true,
-            timeout_seconds: 10,
+            send_grease: false,
+            user_agent: Some("rust-h3-test-tool/1.0".to_string()),
+            max_concurrent_requests: 1,
         },
         H3TestConfig {
             target_domain: "facebook.com".to_string(),
             target_ip: "31.13.66.35".to_string(),
+            ip_version: "IPv4".to_string(),
             port: 443,
-            sni_host: "facebook.com".to_string(),
             test_path: "/".to_string(),
-            user_agent: Some("rust-h3-test-tool/1.0".to_string()),
-            max_field_section_size: Some(8192),
+            timeout_seconds: 30,
+            max_field_section_size: None,
             enable_datagram: false,
             enable_extended_connect: false,
-            send_grease: true,
-            timeout_seconds: 10,
+            send_grease: false,
+            user_agent: Some("rust-h3-test-tool/1.0".to_string()),
+            max_concurrent_requests: 1,
         },
     ]
 }

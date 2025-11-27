@@ -9,7 +9,7 @@ use std::path::Path;
 use std::time::Instant;
 
 // 导入所有测试模块
-use crate::h3_direct_test::{H3Tester, H3TestConfig, get_default_h3_test_configs, generate_test_report};
+use crate::h3_direct_test::{H3Tester, H3TestConfig, H3TestResult, get_default_h3_test_configs, generate_test_report};
 use crate::main_h3_test::{
     H3IntegrationTest, H3IntegrationResult, get_default_integration_test_configs,
     run_http3_integration_tests,
@@ -352,16 +352,17 @@ pub async fn run_native_h3_tests(config: &ComprehensiveTestConfig) -> Result<Vec
                             result.status_code = h3_result.response_status;
                             result.latency_ms = h3_result.latency_ms;
                             result.response_size = h3_result.response_size;
-                            result.server_header = h3_result.server_header;
-                            result.alpn_protocol = Some(h3_result.alpn_protocol);
-                            result.additional_metrics.insert(
-                                "connection_id".to_string(),
-                                serde_json::Value::String(h3_result.connection_id.unwrap_or_default()),
-                            );
-                            result.additional_metrics.insert(
-                                "stream_id".to_string(),
-                                serde_json::Value::Number(serde_json::Number::from(h3_result.stream_id.unwrap_or(0))),
-                            );
+                            result.server_header = None; // h3_result doesn't have server_header field
+                            result.alpn_protocol = h3_result.alpn_protocol;
+                            // 注释掉不存在的字段
+                            // result.additional_metrics.insert(
+                            //     "connection_id".to_string(),
+                            //     serde_json::Value::String(h3_result.connection_id.unwrap_or_default()),
+                            // );
+                            // result.additional_metrics.insert(
+                            //     "stream_id".to_string(),
+                            //     serde_json::Value::Number(serde_json::Number::from(h3_result.stream_id.unwrap_or(0))),
+                            // );
                             results.push(result);
                         }
                         Err(e) => {
@@ -470,7 +471,7 @@ pub async fn run_comprehensive_h3_tests() -> Result<()> {
     generate_comprehensive_report(&all_results)?;
 
     // --- 8. 保存结果到文件 ---
-    if let Ok(timestamp) = chrono::Utc::now().format("%Y%m%d_%H%M%S") {
+    let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
         let filename = format!("http3_test_results_{}.json", timestamp);
         if let Ok(json_output) = serde_json::to_string_pretty(&all_results) {
             if let Err(e) = fs::write(&filename, json_output) {
