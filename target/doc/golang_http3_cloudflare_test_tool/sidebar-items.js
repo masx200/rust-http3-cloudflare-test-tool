@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["add_fallback_cloudflare_ips","fallback_to_json_api","is_bad_ipv4_address","is_valid_ipv4_address","main","resolve_domain_with_hickory","test_connectivity"],"struct":["InputTask","TestResult"]};
