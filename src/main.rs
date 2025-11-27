@@ -212,74 +212,42 @@ async fn resolve_domain_with_rfc8484(client: &Client, task: &InputTask) -> Resul
                     }
                 }
                 Err(e) => {
-                    println!("    -> RFC 8484 DoH IPv4 查询失败: {}", e);
-
-                    // 回退到传统 DNS 查询
-                    if let Ok(name) = Name::from_ascii(&task.doh_resolve_domain) {
-                        let resolver = hickory_resolver::Resolver::builder_tokio()?
-                            .build()
-                            .context("Failed to create basic resolver")?;
-
-                        match resolver.lookup_ip(name).await {
-                            Ok(lookup) => {
-                                for ip in lookup.iter() {
-                                    ips.insert(ip);
-                                    println!("    -> 从回退解析器找到IP: {}", ip);
-                                }
-                            }
-                            Err(e) => {
-                                println!("    -> 回退解析器也失败: {:?}", e);
-                            }
-                        }
-                    }
+                    println!("    -> RFC 8484 DoH 查询失败: {:?}", e);
                 }
             }
         }
         "a_aaaa" => {
-            // 传统 DNS 查询
-            println!("    -> 使用传统DNS查询: {}", task.doh_resolve_domain);
-            let resolver = hickory_resolver::Resolver::builder_tokio()?
-                .build()
-                .context("Failed to create resolver")?;
+            // 使用 DoH 查询 A 和 AAAA 记录
+            println!("    -> 使用 DoH 查询: {}", task.doh_resolve_domain);
 
-            let name = Name::from_ascii(&task.doh_resolve_domain)
-                .context("Failed to parse domain name")?;
+            // 查询 A 记录 (IPv4)
+            match query_dns_over_https(client, &task.doh_resolve_domain, RecordType::A, &task.doh_url).await {
+                Ok(mut ipv4_addresses) => {
+                    ipv4_addresses.retain(|ip| {
+                        let ip_str = ip.to_string();
+                        is_valid_ipv4_address(&ip_str) && !is_bad_ipv4_address(&ip_str)
+                    });
 
-            match resolver.lookup_ip(name).await {
-                Ok(lookup) => {
-                    for ip in lookup.iter() {
-                        ips.insert(ip);
-                        println!("    -> 从传统DNS找到IP: {}", ip);
+                    for ip in &ipv4_addresses {
+                        ips.insert(*ip);
+                        println!("    -> 从 DoH 找到 IPv4: {}", ip);
                     }
                 }
                 Err(e) => {
-                    println!("    -> 传统DNS查询失败: {:?}", e);
+                    println!("    -> DoH IPv4 查询失败: {:?}", e);
+                }
+            }
 
-                    // 尝试 DoH 作为最后手段
-                    match query_dns_over_https(client, &task.doh_resolve_domain, RecordType::A, &task.doh_url).await {
-                        Ok(mut ipv4_addresses) => {
-                            ipv4_addresses.retain(|ip| {
-                                let ip_str = ip.to_string();
-                                is_valid_ipv4_address(&ip_str) && !is_bad_ipv4_address(&ip_str)
-                            });
-
-                            for ip in &ipv4_addresses {
-                                ips.insert(*ip);
-                                println!("    -> 从回退DoH找到 IPv4: {}", ip);
-                            }
-                        }
-                        Err(_) => {}
+            // 查询 AAAA 记录 (IPv6)
+            match query_dns_over_https(client, &task.doh_resolve_domain, RecordType::AAAA, &task.doh_url).await {
+                Ok(ipv6_addresses) => {
+                    for ip in &ipv6_addresses {
+                        ips.insert(*ip);
+                        println!("    -> 从 DoH 找到 IPv6: {}", ip);
                     }
-
-                    match query_dns_over_https(client, &task.doh_resolve_domain, RecordType::AAAA, &task.doh_url).await {
-                        Ok(ipv6_addresses) => {
-                            for ip in &ipv6_addresses {
-                                ips.insert(*ip);
-                                println!("    -> 从回退DoH找到 IPv6: {}", ip);
-                            }
-                        }
-                        Err(_) => {}
-                    }
+                }
+                Err(e) => {
+                    println!("    -> DoH IPv6 查询失败: {:?}", e);
                 }
             }
         }
@@ -487,7 +455,7 @@ async fn main() -> Result<()> {
             task.doh_url, task.doh_resolve_domain, task.resolve_mode
         );
 
-        match resolve_domain_with_hickory(&client, &task).await {
+        match resolve_domain_with_rfc8484(&client, &task).await {
             Ok(ips) => {
                 if ips.is_empty() {
                     println!("    [!] 未找到IP地址");
