@@ -5,7 +5,7 @@
     "test_host_header": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
     "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
     "port": 443,
-    "prefer_ipv6": false,
+    "prefer_ipv6": true,
     "resolve_mode": "https"
   },
   {
@@ -14,7 +14,7 @@
     "test_host_header": "speed.cloudflare.com",
     "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
     "port": 443,
-    "prefer_ipv6": false,
+    "prefer_ipv6": true,
     "resolve_mode": "https"
   },
   {
@@ -23,8 +23,8 @@
     "test_host_header": "speed.cloudflare.com",
     "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
     "port": 443,
-    "prefer_ipv6": false,
+    "prefer_ipv6": true,
     "resolve_mode": "direct",
-    "direct_ips": ["162.159.140.220", "172.67.214.232"]
+    "direct_ips": ["162.159.140.220", "172.67.214.232","2606:4700:7::da","2a06:98c1:58::da"]
   }
 ]
