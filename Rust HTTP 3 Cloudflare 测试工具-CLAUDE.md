@@ -212,8 +212,7 @@ over HTTPS (DoH)解析目标域名的IP地址，并进行HTTP/3连接测试。
 cargo build --release
 
 # 运行测试
-cargo test
-
+pnpx cross-env RUSTFLAGS='--cfg reqwest_unstable' powershell -c '&"C:\Program Files\Rust stable MSVC 1.91\bin\cargo.EXE" test --package golang-http3-cloudflare-test-tool --bin golang-http3-cloudflare-test-tool -- doh_docs_test::doh_docs_integration_tests test_test::tests --nocapture'
 # 运行程序
 cargo run --release
 ```
