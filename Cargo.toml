@@ -50,7 +50,7 @@ chrono = { version = "0.4", features = ["serde"] }
 rustls-native-certs = "0.7"
 h3-quinn = { path = "./h3-master/h3-quinn" }
 clap = { version = "4.0", features = ["derive"] }
-pki-types = "0.3"
+rustls-pki-types = "1.10"
 
 [patch.crates-io]
 # 如果需要覆盖某些依赖版本，可以在这里添加
