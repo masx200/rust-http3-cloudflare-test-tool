@@ -234,9 +234,9 @@ to create DoH client");
         // 可以在这里添加测试不同 SNI/Host 的任务
         /\*
         ,{
-            "doh\_resolve\_domain": "www.speed.cloudflare.com",
-            "test\_sni\_host": "www.speed.cloudflare.com",
-            "test\_host\_header": "www.speed.cloudflare.com",
+            "doh\_resolve\_domain": "speed.cloudflare.com",
+            "test\_sni\_host": "speed.cloudflare.com",
+            "test\_host\_header": "speed.cloudflare.com",
             "doh\_url": "...",
             "port": 443,
             "prefer\_ipv6": true
