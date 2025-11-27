@@ -1,0 +1,39 @@
+{
+  "test_mode": "all",
+  "target_domains": [
+    "cloudflare.com",
+    "google.com",
+    "facebook.com",
+    "twitter.com",
+    "github.com"
+  ],
+  "output_format": "all",
+  "max_concurrent_tests": 10,
+  "timeout_seconds": 30,
+  "enable_ipv6": false,
+  "dns_resolve_mode": "https",
+  "doh_server": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
+  "test_paths": [
+    "/",
+    "/cdn-cgi/trace",
+    "/health",
+    "/api/v4/ping"
+  ],
+  "use_fallback": true,
+  "max_field_section_size": 8192,
+  "custom_configs": [
+    {
+      "target_domain": "http3-demo.cloudflare.com",
+      "target_ip": "auto",
+      "port": 443,
+      "sni_host": "http3-demo.cloudflare.com",
+      "test_path": "/",
+      "user_agent": "rust-http3-test-tool/1.0",
+      "max_field_section_size": 8192,
+      "enable_datagram": false,
+      "enable_extended_connect": false,
+      "send_grease": true,
+      "timeout_seconds": 15
+    }
+  ]
+}

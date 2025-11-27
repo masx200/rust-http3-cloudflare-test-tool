@@ -22,6 +22,7 @@ mod test_test;
 // mod main_new;
 mod h3_direct_test;
 mod main_h3_test;
+mod main_comprehensive_h3;
 #[cfg(test)]
 mod http3_test;
 // --- 1. 输入配置 ---
@@ -437,97 +438,6 @@ impl TestResult {
 // --- 5. 主程序入口 ---
 #[tokio::main]
 async fn main() -> Result<()> {
-    let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .expect("Failed to create HTTP client");
-
-    let input_json = r#"
-    [
-        {
-            "doh_resolve_domain": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
-            "test_sni_host": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
-            "test_host_header": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
-            "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
-            "port": 443,
-            "prefer_ipv6": true,
-            "resolve_mode": "https"
-        },
-        {
-            "doh_resolve_domain": "speed.cloudflare.com",
-            "test_sni_host": "speed.cloudflare.com",
-            "test_host_header": "speed.cloudflare.com",
-            "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
-            "port": 443,
-            "prefer_ipv6": true,
-            "resolve_mode": "https"
-        },
-        {
-            "doh_resolve_domain": "speed.cloudflare.com",
-            "test_sni_host": "speed.cloudflare.com",
-            "test_host_header": "speed.cloudflare.com",
-            "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
-            "port": 443,
-            "prefer_ipv6": true,
-            "direct_ips": ["162.159.140.220", "172.67.214.232"],
-            "resolve_mode": "direct"
-        }
-    ]
-    "#;
-
-    let tasks: Vec<InputTask> =
-        serde_json::from_str(input_json).context("Invalid JSON format in input")?;
-
-    let mut futures = Vec::new();
-
-    for task in tasks {
-        println!(
-            ">>> 正在通过 {} 解析 {} 的记录 (模式: {})...",
-            task.doh_url, task.doh_resolve_domain, task.resolve_mode
-        );
-
-        match resolve_domain_with_rfc8484(&client, &task).await {
-            Ok(ips) => {
-                if ips.is_empty() {
-                    println!("    [!] 未找到IP地址");
-                    continue;
-                }
-                println!("    -> 解析成功，获取到 {} 个IP地址: {:?}", ips.len(), ips);
-
-                for ip in ips {
-                    if let Some(prefer_ipv6) = task.prefer_ipv6 {
-                        if prefer_ipv6 != ip.is_ipv6() {
-                            continue;
-                        }
-                    }
-
-                    let task_clone = task.clone();
-                    let dns_source = if task.resolve_mode == "direct" {
-                        "Direct Input".to_string()
-                    } else {
-                        format!("DoH ({})", task.doh_url)
-                    };
-
-                    futures.push(tokio::spawn(async move {
-                        test_connectivity(task_clone, ip, dns_source).await
-                    }));
-                }
-            }
-            Err(e) => {
-                eprintln!("    [X] DNS解析失败: {:?}", e);
-            }
-        }
-    }
-
-    let mut results = Vec::new();
-    for f in futures {
-        if let Ok(res) = f.await {
-            results.push(res);
-        }
-    }
-
-    println!("\n=== 最终测试结果 (JSON) ===");
-    println!("{}", serde_json::to_string_pretty(&results).unwrap());
-
-    Ok(())
+    // 调用综合 HTTP/3 测试
+    main_comprehensive_h3::main().await
 }
