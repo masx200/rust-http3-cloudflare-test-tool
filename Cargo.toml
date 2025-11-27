@@ -7,8 +7,8 @@ description = "A Rust tool for testing Cloudflare HTTP/3 connectivity with DNS o
 license = "MIT"
 
 [dependencies]
-# HTTP 客户端 (包含 HTTP3, rustls, json 特性)
-reqwest = { version = "0.12", features = ["json", "rustls-tls", "http3", "gzip", "brotli"] }
+# HTTP 客户端 - 使用本地 reqwest 库 (包含 HTTP3, rustls, json 特性)
+reqwest = { path = "./reqwest-master/reqwest-master", features = ["json", "rustls-tls", "http3", "gzip", "brotli"] }
 
 # 异步运行时
 tokio = { version = "1", features = ["full"] }
@@ -20,21 +20,28 @@ serde_json = "1"
 # 错误处理
 anyhow = "1"
 
-
-
-
-
 # 正则表达式 (用于解析复杂的 DNS 字符串)
 regex = "1"
 
-
-
-# 专业 DNS 协议库 (为将来RFC 8484完整实现准备)
-# 启用 DNS-over-HTTPS 功能以支持 RFC 8484 二进制 DoH 协议
-trust-dns-resolver = { version = "0.23.0-alpha.5", features = ["dns-over-https-rustls"] }
+# Hickory-DNS - 使用本地 hickory-dns 库替代 trust-dns
+hickory-resolver = { path = "./hickory-dns-main/crates/resolver", features = ["tokio"] }
+hickory-client = { path = "./hickory-dns-main/crates/client" }
 
 # HTTP URI 解析库，用于解析 DoH URL
-http = "0.2"
+http = "1.1"
 
 # 随机数生成，用于 DNS 查询 ID
-rand = "0.8"
+rand = "0.9"
+
+# 其他 Hickory-DNS 相关依赖
+hickory-proto = { path = "./hickory-dns-main/crates/proto" }
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12"] }
+webpki-roots = "1"
+ring = "0.17"
+
+# 异步工具
+futures = "0.3"
+
+[patch.crates-io]
+# 如果需要覆盖某些依赖版本，可以在这里添加
+# reqwest = { path = "./reqwest-master/reqwest-master" }

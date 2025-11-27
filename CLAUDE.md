@@ -5,6 +5,164 @@ code in this repository.
 
 ## 项目概述
 
+这是一个用Rust开发的HTTP/3连接测试工具，主要用于测试Cloudflare和其他支持HTTP/3的服务的连通性和性能。项目已成功迁移到使用本地下载的第三方库进行开发。
+
+## 核心功能
+
+### DNS解析功能
+
+- **Hickory-DNS (v0.25.2)**: 使用下载的hickory-dns库替代trust-dns，支持RFC 8484标准的完整DNS解析
+  - DoH (DNS over HTTPS): 使用Hickory-DNS进行符合RFC 8484的DoH查询
+  - HTTPS记录解析: 支持HTTPS (类型65) DNS记录以获取SVCB参数
+  - A/AAAA记录解析: 支持传统的IPv4和IPv6地址解析
+  - 直接IP模式: 支持手动指定IP地址进行测试
+- **Reqwest (v0.12.24)**: 使用下载的reqwest库，支持HTTP/3协议
+  - HTTP/3支持: 使用quinn协议进行HTTP/3连接
+  - 完整的TLS支持: 使用本地rustls库
+  - 回退兼容: 保留JSON API作为Hickory-DNS失败时的回退方案
+
+### HTTP/3连接测试
+
+- 使用reqwest库进行HTTP/3协议通信
+- 支持SNI (Server Name Indication) 配置
+- 可配置目标端口 (默认443)
+- 收集连接指标：延迟、协议版本、响应码等
+
+## 关键架构决策
+
+### 第三方库集成
+
+**重要**: 项目已成功从crates.io版本迁移到本地下载的第三方库：
+
+1. **Hickory-DNS替代**:
+   - 从 `trust-dns-resolver = "0.23.0-alpha.5"` 迁移到 `hickory-resolver = { path = "./hickory-dns-main/crates/resolver", features = ["tokio"] }`
+   - 支持完整的RFC 8484 DNS解析器
+   - DoH查询使用标准的DNS-over-HTTPS协议
+
+2. **Reqwest本地化**:
+   - 从 `reqwest = { version = "0.12", features = [...] }` 迁移到 `reqwest = { path = "./reqwest-master/reqwest-master", features = [...] }`
+   - 支持最新的HTTP/3特性（需要`RUSTFLAGS='--cfg reqwest_unstable'`）
+
+### 依赖管理更新
+
+**关键依赖变更**:
+```toml
+[dependencies]
+# HTTP 客户端 - 使用本地 reqwest 库
+reqwest = { path = "./reqwest-master/reqwest-master", features = ["json", "rustls-tls", "http3", "gzip", "brotli"] }
+
+# Hickory-DNS - 使用本地 hickory-dns 库
+hickory-resolver = { path = "./hickory-dns-main/crates/resolver", features = ["tokio"] }
+hickory-client = { path = "./hickory-dns-main/crates/client" }
+hickory-proto = { path = "./hickory-dns-main/crates/proto" }
+
+# 其他必需依赖
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12"] }
+webpki-roots = "1"
+ring = "0.17"
+futures = "0.3"
+```
+
+## 开发指南
+
+### HTTP/3连接测试
+
+要启用HTTP/3支持，必须使用以下环境变量：
+
+```bash
+# 启用reqwest不稳定特性以获得HTTP/3功能
+export RUSTFLAGS='--cfg reqwest_unstable'
+
+# 构建项目
+cargo build --release
+
+# 运行程序
+cargo run --release
+```
+
+### DNS解析模式
+
+程序支持三种解析模式：
+
+1. **https模式**: 使用Hickory-DNS进行DoH查询（推荐）
+   - 符合RFC 8484标准
+   - 支持完整的DNS over HTTPS协议
+
+2. **a_aaaa模式**: 使用Hickory-DNS进行传统A/AAAA记录查询
+   - 兼容性更好
+   - 适用于不需要DoH的场景
+
+3. **direct模式**: 使用预定义的IP地址
+   - 最快的连接方式
+   - 跳过DNS解析直接连接
+
+## 构建说明
+
+### 成功标准
+
+项目能够成功构建并运行，输出JSON格式的测试结果，包含：
+
+- 域名解析结果
+- IP地址信息
+- HTTP/3连接测试结果
+- 协议版本 (http/1.1, http/2, h3)
+- 连接延迟
+- 服务器响应信息
+
+### 故障排除
+
+#### 常见构建问题
+
+1. **RUSTFLAGS未设置**: HTTP/3功能需要`--cfg reqwest_unstable`
+   ```bash
+   # 解决方案
+   export RUSTFLAGS='--cfg reqwest_unstable'
+   cargo build --release
+   ```
+
+2. **路径依赖错误**: 确保本地库路径正确
+   ```bash
+   # 检查路径
+   ls -la hickory-dns-main/ reqwest-master/
+   ```
+
+3. **版本不兼容**: 本地库版本可能与API不兼容
+   ```bash
+   # 清理并重新构建
+   cargo clean
+   cargo build --release
+   ```
+
+## 版本历史
+
+### v0.2.0 (当前版本)
+- 成功迁移到本地第三方库
+- 支持Hickory-DNS v0.25.2完整DNS解析
+- 支持Reqwest v0.12.24与HTTP/3
+- 改进的错误处理和日志记录
+- 三种DNS解析模式支持
+
+## 部署注意事项
+
+### 开发环境要求
+
+- Rust 1.64.0+
+- Tokio运行时
+- 网络连接（用于DoH查询）
+- 目标服务器的HTTP/3支持
+
+### 生产环境
+
+- 确保使用有效的TLS证书
+- 配置适当的超时设置
+- 监控连接池和资源使用
+
+## 许可证
+
+本项目采用MIT许可证。详见LICENSE文件。
+
+## 项目概述
+
 这是一个用Rust开发的HTTP/3连接测试工具，主要用于测试Cloudflare和其他支持HTTP/3的服务的连通性和性能。项目使用DNS
 over HTTPS (DoH)解析目标域名的IP地址，并进行HTTP/3连接测试。
 

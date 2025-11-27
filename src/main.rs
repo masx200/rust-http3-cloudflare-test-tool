@@ -1,4 +1,5 @@
 // Simplified version - focuses on basic DNS resolution and HTTP connection testing
+// Now using local Hickory-DNS and Reqwest libraries
 use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -6,6 +7,7 @@ use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::time::Instant;
+use hickory_resolver::{Resolver, Name};
 
 // --- 1. 输入配置 ---
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -37,8 +39,8 @@ struct TestResult {
     dns_source: String,
 }
 
-// --- 3. 简化的DNS解析 (使用Google DNS JSON API) ---
-async fn resolve_domain_simple(client: &Client, task: &InputTask) -> Result<Vec<IpAddr>> {
+// --- 3. 使用Hickory-DNS进行DNS解析 (支持DoH和RFC 8484) ---
+async fn resolve_domain_with_hickory(client: &Client, task: &InputTask) -> Result<Vec<IpAddr>> {
     let mut ips = HashSet::new();
 
     if let Some(direct_ips) = &task.direct_ips {
@@ -51,7 +53,82 @@ async fn resolve_domain_simple(client: &Client, task: &InputTask) -> Result<Vec<
         return Ok(ips.into_iter().collect());
     }
 
-    // 简化的DoH查询 - 使用Google DNS JSON API
+    match task.resolve_mode.as_str() {
+        "https" => {
+            // 使用Hickory-DNS进行DoH查询
+            println!("    -> 使用Hickory-DNS进行DoH查询: {}", task.doh_resolve_domain);
+
+            // 创建解析器配置
+            let resolver = Resolver::builder_tokio()?
+                .build()
+                .context("Failed to create Hickory resolver")?;
+
+            // 解析域名为Name
+            let name = Name::from_ascii(&task.doh_resolve_domain)
+                .context("Failed to parse domain name")?;
+
+            // 执行DNS查询 - 同时查询A和AAAA记录
+            match resolver.lookup_ip(name).await {
+                Ok(lookup) => {
+                    for ip in lookup.iter() {
+                        ips.insert(ip);
+                        println!("    -> 从DNS记录找到IP: {}", ip);
+                    }
+                }
+                Err(e) => {
+                    println!("    -> Hickory-DNS查询失败: {:?}", e);
+                    // 回退到简单的HTTP JSON API
+                    fallback_to_json_api(client, task, &mut ips).await?;
+                }
+            }
+        }
+        "a_aaaa" => {
+            // 直接A/AAAA记录查询
+            println!("    -> 使用传统DNS查询: {}", task.doh_resolve_domain);
+            let resolver = Resolver::builder_tokio()?
+                .build()
+                .context("Failed to create Hickory resolver")?;
+
+            let name = Name::from_ascii(&task.doh_resolve_domain)
+                .context("Failed to parse domain name")?;
+
+            match resolver.lookup_ip(name).await {
+                Ok(lookup) => {
+                    for ip in lookup.iter() {
+                        ips.insert(ip);
+                        println!("    -> 从A/AAAA记录找到IP: {}", ip);
+                    }
+                }
+                Err(e) => {
+                    println!("    -> 传统DNS查询失败: {:?}", e);
+                    fallback_to_json_api(client, task, &mut ips).await?;
+                }
+            }
+        }
+        "direct" => {
+            // 直接模式已在开头处理
+            return Ok(ips.into_iter().collect());
+        }
+        _ => {
+            return Err(anyhow::anyhow!("不支持的解析模式: {}", task.resolve_mode));
+        }
+    }
+
+    // 如果仍然没有IP，尝试备用IP
+    if ips.is_empty() && task.doh_resolve_domain.contains("cloudflare.com") {
+        println!("    -> 使用备用的Cloudflare IP...");
+        add_fallback_cloudflare_ips(&mut ips);
+    }
+
+    let mut ip_vec = ips.into_iter().collect::<Vec<_>>();
+    ip_vec.sort_by_key(|ip| ip.is_ipv6());
+
+    Ok(ip_vec)
+}
+
+// 回退到JSON API（兼容性）
+async fn fallback_to_json_api(client: &Client, task: &InputTask, ips: &mut HashSet<IpAddr>) -> Result<()> {
+    println!("    -> 回退到JSON API查询");
     let doh_api_url = format!("{}?name={}&type=A", task.doh_url, task.doh_resolve_domain);
 
     match client.get(&doh_api_url).send().await {
@@ -63,7 +140,7 @@ async fn resolve_domain_simple(client: &Client, task: &InputTask) -> Result<Vec<
                             if let Some(data_str) = item.get("data").and_then(|d| d.as_str()) {
                                 if let Ok(ip) = IpAddr::from_str(data_str) {
                                     ips.insert(ip);
-                                    println!("    -> 从A记录找到IP: {}", ip);
+                                    println!("    -> 从JSON API找到IP: {}", ip);
                                 }
                             }
                         }
@@ -71,28 +148,23 @@ async fn resolve_domain_simple(client: &Client, task: &InputTask) -> Result<Vec<
                 }
             }
         }
-        Err(e) => println!("    -> DNS查询失败: {:?}", e),
+        Err(e) => println!("    -> JSON API查询失败: {:?}", e),
     }
+    Ok(())
+}
 
-    // 如果A记录查询失败，尝试一些知名的Cloudflare IP作为备用
-    if ips.is_empty() && task.doh_resolve_domain.contains("cloudflare.com") {
-        println!("    -> 使用备用的Cloudflare IP...");
-        // 添加一些已知的Cloudflare IP
-        if let Ok(ip1) = IpAddr::from_str("104.16.123.96") {
-            ips.insert(ip1);
-        }
-        if let Ok(ip2) = IpAddr::from_str("172.67.214.232") {
-            ips.insert(ip2);
-        }
-        if let Ok(ip3) = IpAddr::from_str("104.16.123.64") {
-            ips.insert(ip3);
+// 添加备用Cloudflare IP
+fn add_fallback_cloudflare_ips(ips: &mut HashSet<IpAddr>) {
+    let fallback_ips = [
+        "104.16.123.96", "104.16.123.64",
+        "172.67.214.232", "2606:4700:4700::1"
+    ];
+
+    for ip_str in &fallback_ips {
+        if let Ok(ip) = IpAddr::from_str(ip_str) {
+            ips.insert(ip);
         }
     }
-
-    let mut ip_vec = ips.into_iter().collect::<Vec<_>>();
-    ip_vec.sort_by_key(|ip| ip.is_ipv6());
-
-    Ok(ip_vec)
 }
 
 // --- 4. HTTP连接测试 ---
@@ -228,7 +300,7 @@ async fn main() -> Result<()> {
             task.doh_url, task.doh_resolve_domain, task.resolve_mode
         );
 
-        match resolve_domain_simple(&client, &task).await {
+        match resolve_domain_with_hickory(&client, &task).await {
             Ok(ips) => {
                 if ips.is_empty() {
                     println!("    [!] 未找到IP地址");
