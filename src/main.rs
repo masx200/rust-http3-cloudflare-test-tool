@@ -1,8 +1,8 @@
 // Simplified version - focuses on basic DNS resolution and HTTP connection testing
 // Now using local Hickory-DNS and Reqwest libraries
 use anyhow::{Context, Result};
-use hickory_resolver::{Name, Resolver};
-use reqwest::Client;
+use hickory_resolver::{Name, Resolver, config::{ResolverConfig, NameServerConfig}};
+use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
@@ -61,10 +61,42 @@ async fn resolve_domain_with_hickory(client: &Client, task: &InputTask) -> Resul
                 task.doh_resolve_domain
             );
 
-            // 创建解析器配置，配置DoH服务器
-            let resolver = Resolver::builder_tokio()?
-                .build()
-                .context("Failed to create Hickory resolver")?;
+            // 创建解析器配置，配置DoH服务器 (RFC 8484)
+            // 解析DoH URL中的域名部分
+            let doh_url_obj = url::Url::parse(&task.doh_url)
+                .context("Failed to parse DoH URL")?;
+            let doh_host = doh_url_obj.host_str()
+                .context("Failed to extract DoH host")?;
+
+            // 从DoH URL提取IP地址 (这里我们使用Cloudflare DNS的IP)
+            let doh_ips = vec![
+                "1.1.1.1",
+                "1.0.0.1",
+                "2606:4700:4700::1111",
+                "2606:4700:4700::1001"
+            ];
+
+            let mut name_servers = Vec::new();
+            for ip_str in doh_ips {
+                if let Ok(ip) = std::net::IpAddr::from_str(ip_str) {
+                    // 创建HTTPS DoH连接配置
+                    let name_server = hickory_resolver::config::NameServerConfig::https(
+                        ip,
+                        std::sync::Arc::from(doh_host),
+                        Some(std::sync::Arc::from("/dns-query"))
+                    );
+                    name_servers.push(name_server);
+                }
+            }
+
+            let resolver_config = ResolverConfig::from_parts(None, vec![], name_servers);
+
+            let resolver = Resolver::builder_with_config(
+                resolver_config,
+                hickory_resolver::proto::runtime::TokioRuntimeProvider::default()
+            )
+            .build()
+            .context("Failed to create Hickory resolver with DoH")?;
 
             // 解析域名为Name
             let name = Name::from_ascii(&task.doh_resolve_domain)
