@@ -630,7 +630,6 @@ pub fn generate_comprehensive_report(results: &[ComprehensiveTestResult]) -> Res
 }
 
 // --- 10. 主程序入口 ---
-#[tokio::main]
 pub async fn main() -> Result<()> {
     // 设置 panic hook 来提供更好的错误信息
     std::panic::set_hook(Box::new(|panic_info| {

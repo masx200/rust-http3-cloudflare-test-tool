@@ -15,7 +15,7 @@ use trust_dns_proto::serialize::binary::BinEncodable;
 
 // --- 1. 输入配置 ---
 #[derive(Debug, Clone, Deserialize, Serialize)]
-struct InputTask {
+pub struct InputTask {
     doh_resolve_domain: String,
     test_sni_host: String,
     test_host_header: String,
@@ -29,7 +29,7 @@ struct InputTask {
 
 // --- 2. 输出结果 ---
 #[derive(Debug, Serialize)]
-struct TestResult {
+pub struct TestResult {
     domain_used: String,
     target_ip: String,
     ip_version: String,
@@ -150,7 +150,7 @@ async fn query_dns_over_https(
     Ok(ip_addresses)
 }
 
-async fn resolve_domain_with_rfc8484(client: &Client, task: &InputTask) -> Result<Vec<IpAddr>> {
+pub async fn resolve_domain_with_rfc8484(client: &Client, task: &InputTask) -> Result<Vec<IpAddr>> {
     let mut ips = HashSet::new();
 
     if let Some(direct_ips) = &task.direct_ips {
