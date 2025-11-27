@@ -1,4 +1,4 @@
-# 临时测试版本 - 简化DNS解析逻辑
+// # 临时测试版本 - 简化DNS解析逻辑
 use anyhow::{Context, Result};
 use reqwest::{Client, Version};
 use serde::{Deserialize, Serialize};

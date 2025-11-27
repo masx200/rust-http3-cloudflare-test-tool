@@ -187,7 +187,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
             "test_sni_host": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
             "test_host_header": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
-            "doh_url": "https://dns.google/resolve",
+            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": null,
             "resolve_mode": "https"
@@ -196,7 +196,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "speed.cloudflare.com",
             "test_sni_host": "speed.cloudflare.com",
             "test_host_header": "speed.cloudflare.com",
-            "doh_url": "https://dns.google/resolve",
+            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
             "resolve_mode": "https"
@@ -205,7 +205,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "speed.cloudflare.com",
             "test_sni_host": "speed.cloudflare.com",
             "test_host_header": "speed.cloudflare.com",
-            "doh_url": "https://dns.google/resolve",
+            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
             "direct_ips": ["104.16.123.96", "172.67.214.232"],

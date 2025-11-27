@@ -1,4 +1,4 @@
-# 简化版本 - 专注于基本DNS解析和HTTP连接测试
+// Simplified version - focuses on basic DNS resolution and HTTP connection testing
 use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -106,7 +106,8 @@ async fn test_connectivity(task: InputTask, ip: IpAddr, dns_source: String) -> T
         .danger_accept_invalid_certs(true)
         .timeout(std::time::Duration::from_secs(5))
         .no_proxy()
-        .build() {
+        .build()
+    {
         Ok(c) => c,
         Err(e) => {
             return TestResult::fail(&task, &ip.to_string(), ip_ver, e.to_string(), dns_source)
@@ -115,11 +116,13 @@ async fn test_connectivity(task: InputTask, ip: IpAddr, dns_source: String) -> T
 
     let start = Instant::now();
 
-    match client.get(&url)
+    match client
+        .get(&url)
         .header("Host", &task.test_host_header)
         .header("User-Agent", "curl/8.12.1")
         .send()
-        .await {
+        .await
+    {
         Ok(res) => {
             let latency = start.elapsed().as_millis() as u64;
             let status = res.status().as_u16();
@@ -187,7 +190,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
             "test_sni_host": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
             "test_host_header": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
-            "doh_url": "https://dns.google/resolve",
+            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": null,
             "resolve_mode": "https"
@@ -196,7 +199,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "speed.cloudflare.com",
             "test_sni_host": "speed.cloudflare.com",
             "test_host_header": "speed.cloudflare.com",
-            "doh_url": "https://dns.google/resolve",
+            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
             "resolve_mode": "https"
@@ -205,7 +208,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "speed.cloudflare.com",
             "test_sni_host": "speed.cloudflare.com",
             "test_host_header": "speed.cloudflare.com",
-            "doh_url": "https://dns.google/resolve",
+            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
             "direct_ips": ["104.16.123.96", "172.67.214.232"],

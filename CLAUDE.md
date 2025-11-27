@@ -85,7 +85,7 @@ src/
     "doh_resolve_domain": "example.com",
     "test_sni_host": "example.com",
     "test_host_header": "example.com",
-    "doh_url": "https://dns.google/resolve",
+    "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
     "port": 443,
     "prefer_ipv6": false,
     "resolve_mode": "https", // "https", "a_aaaa", "direct"
