@@ -23,6 +23,9 @@ anyhow = "1"
 # 正则表达式 (用于解析复杂的 DNS 字符串)
 regex = "1"
 
+# URL编码 (用于DoH查询参数)
+urlencoding = "2"
+
 # Hickory-DNS - 使用本地 hickory-dns 库替代 trust-dns
 hickory-resolver = { path = "./hickory-dns-main/crates/resolver", features = ["tokio"] }
 hickory-client = { path = "./hickory-dns-main/crates/client" }

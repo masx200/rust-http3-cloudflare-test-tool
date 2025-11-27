@@ -14,6 +14,10 @@ use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::time::Instant;
 
+// Include DoH and Docs.rs integration tests
+#[cfg(test)]
+mod doh_docs_test;
+
 // --- 1. 输入配置 ---
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct InputTask {
