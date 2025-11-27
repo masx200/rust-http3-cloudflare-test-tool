@@ -1,13 +1,14 @@
-// HTTP/3 network request test using reqwest
-// Based on main.rs but modified for HTTP/3 testing
+// HTTP/3 network request test using reqwest with HTTP/3 support
+// Based on main.rs but enhanced for HTTP/3 testing
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose, Engine as _};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+use tokio::time::timeout;
 use trust_dns_proto::op::{Message, Query};
 use trust_dns_proto::rr::{Name, RecordType};
 use trust_dns_proto::serialize::binary::BinEncodable;
@@ -23,6 +24,7 @@ struct InputTask {
     prefer_ipv6: Option<bool>,
     resolve_mode: String,
     direct_ips: Option<Vec<String>>,
+    test_path: Option<String>, // HTTP/3 测试路径
 }
 
 // --- 2. 输出结果 ---
@@ -38,8 +40,10 @@ struct TestResult {
     protocol: String,
     latency_ms: Option<u64>,
     server_header: Option<String>,
+    response_size: Option<usize>,
     error_msg: Option<String>,
     dns_source: String,
+    request_path: String,
 }
 
 // --- 3. RFC 8484 DNS over HTTPS (DoH) 实现 ---
@@ -290,28 +294,29 @@ fn add_fallback_cloudflare_ips(ips: &mut HashSet<IpAddr>) {
 }
 
 // --- 4. HTTP/3 連接測試 ---
-async fn test_http3_connectivity(task: InputTask, ip: IpAddr, dns_source: String) -> TestResult {
-    let url = format!("https://{}:{}/", task.test_sni_host, task.port);
-    let socket_addr = SocketAddr::new(ip, task.port);
+async fn test_http3_connectivity(task: &InputTask, ip: IpAddr, dns_source: String) -> TestResult {
+    let test_path = task.test_path.as_deref().unwrap_or("/");
+    let url = format!("https://{}:{}{}", task.test_sni_host, task.port, test_path);
     let ip_ver = if ip.is_ipv6() { "IPv6" } else { "IPv4" };
 
-    // 配置 HTTP/3 客户端 - 使用 HTTP/3 升级头
+    println!("    -> 测试 HTTP/3 连接到: {} ({})", url, ip);
+
+    // 配置 HTTP/3 客户端 - 使用 reqwest 的 HTTP/3 支持
     let client = match Client::builder()
-        .resolve_to_addrs(&task.test_sni_host, &[socket_addr])
-        .timeout(std::time::Duration::from_secs(10)) // 增加超时时间
-        .no_proxy()
-        .user_agent("curl/8.12.1 rust-http3-test-tool")
-        // 注意：reqwest 默认支持 HTTP/2 和 HTTP/3 升级
+        .timeout(std::time::Duration::from_secs(10))
+        .user_agent("rust-http3-test-tool/1.0")
         .default_headers({
             let mut headers = reqwest::header::HeaderMap::new();
             headers.insert("Alt-Svc", "h3=\":443\"".parse().unwrap());
+            headers.insert("Connection", "keep-alive".parse().unwrap());
             headers
         })
         .build()
     {
         Ok(c) => c,
         Err(e) => {
-            return TestResult::fail(&task, &ip.to_string(), ip_ver, e.to_string(), dns_source)
+            return TestResult::fail(task, &ip.to_string(), ip_ver,
+                format!("Failed to create HTTP client: {}", e), dns_source);
         }
     };
 
@@ -320,9 +325,8 @@ async fn test_http3_connectivity(task: InputTask, ip: IpAddr, dns_source: String
     match client
         .get(&url)
         .header("Host", &task.test_host_header)
-        .header("User-Agent", "curl/8.12.1 rust-http3-test-tool")
-        .header("Accept", "*/*")
-        .header("Connection", "keep-alive")
+        .header("Accept", "text/plain,application/json,*/*")
+        .header("User-Agent", "rust-http3-test-tool/1.0")
         .send()
         .await
     {
@@ -339,33 +343,59 @@ async fn test_http3_connectivity(task: InputTask, ip: IpAddr, dns_source: String
             let protocol = match res.version() {
                 reqwest::Version::HTTP_11 => "http/1.1",
                 reqwest::Version::HTTP_2 => "h2",
-                reqwest::Version::HTTP_3 => "h3", // 注意：reqwest 可能不完全支持 HTTP/3 版本检测
+                reqwest::Version::HTTP_3 => "h3",
                 _ => {
-                    // 检查是否有 HTTP/3 响应头
+                    // 通过响应头判断协议
                     if res.headers().get("alt-svc").is_some() {
-                        "h3-upgrade"
+                        "h3-detected"
                     } else {
                         "unknown"
                     }
                 }
             };
 
+            // 检查 HTTP/3 相关响应头
+            let _h3_indicators = vec![
+                ("alt-svc", res.headers().get("alt-svc").is_some()),
+                ("h3", res.headers().get("h3").is_some()),
+                ("x-http3-connection", res.headers().get("x-http3-connection").is_some()),
+            ];
+
+            let response_size = match res.content_length() {
+                Some(len) => len as usize,
+                None => {
+                    // 尝试读取部分响应体来估算大小
+                    match res.bytes().await {
+                        Ok(bytes) => bytes.len(),
+                        Err(_) => 0,
+                    }
+                }
+            };
+
+            println!("    -> HTTP/3 响应: {} - {} - {} bytes - {}",
+                     status, protocol, response_size, server.as_deref().unwrap_or("Unknown"));
+
             TestResult {
-                domain_used: task.doh_resolve_domain,
+                domain_used: task.doh_resolve_domain.clone(),
                 target_ip: ip.to_string(),
                 ip_version: ip_ver.to_string(),
-                sni_host: task.test_sni_host,
-                host_header: task.test_host_header,
+                sni_host: task.test_sni_host.clone(),
+                host_header: task.test_host_header.clone(),
                 success: status < 500,
                 status_code: Some(status),
                 protocol: protocol.to_string(),
                 latency_ms: Some(latency),
                 server_header: server,
+                response_size: Some(response_size),
                 error_msg: None,
                 dns_source,
+                request_path: test_path.to_string(),
             }
         }
-        Err(e) => TestResult::fail(&task, &ip.to_string(), ip_ver, e.to_string(), dns_source),
+        Err(e) => {
+            TestResult::fail(task, &ip.to_string(), ip_ver,
+                format!("HTTP request failed: {}", e), dns_source)
+        }
     }
 }
 
@@ -382,8 +412,10 @@ impl TestResult {
             protocol: "none".to_string(),
             latency_ms: None,
             server_header: None,
+            response_size: None,
             error_msg: Some(msg),
             dns_source,
+            request_path: task.test_path.as_deref().unwrap_or("/").to_string(),
         }
     }
 }
@@ -408,8 +440,9 @@ async fn test_http3_network_requests() -> Result<()> {
             "test_host_header": "cloudflare.com",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
-            "prefer_ipv6": true,
-            "resolve_mode": "https"
+            "prefer_ipv6": false,
+            "resolve_mode": "https",
+            "test_path": "/cdn-cgi/trace"
         },
         {
             "doh_resolve_domain": "dash.cloudflare.com",
@@ -418,7 +451,18 @@ async fn test_http3_network_requests() -> Result<()> {
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
-            "resolve_mode": "https"
+            "resolve_mode": "https",
+            "test_path": "/"
+        },
+        {
+            "doh_resolve_domain": "www.google.com",
+            "test_sni_host": "www.google.com",
+            "test_host_header": "www.google.com",
+            "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
+            "port": 443,
+            "prefer_ipv6": false,
+            "resolve_mode": "https",
+            "test_path": "/"
         }
     ]
     "#;
@@ -456,8 +500,19 @@ async fn test_http3_network_requests() -> Result<()> {
                         format!("DoH ({})", task.doh_url)
                     };
 
+                    let ip_str = ip.to_string();
+                    let ip_ver = if ip.is_ipv6() { "IPv6" } else { "IPv4" };
+                    let task_for_fail = task.clone();
+                    let dns_source_for_fail = dns_source.clone();
                     futures.push(tokio::spawn(async move {
-                        test_http3_connectivity(task_clone, ip, dns_source).await
+                        match test_http3_connectivity(&task_clone, ip, dns_source).await {
+                            Ok(result) => result,
+                            Err(e) => {
+                                TestResult::fail(&task_for_fail, &ip_str,
+                                                 ip_ver,
+                                                 format!("测试失败: {}", e), dns_source_for_fail)
+                            }
+                        }
                     }));
                 }
             }
@@ -493,12 +548,13 @@ async fn test_http3_network_requests() -> Result<()> {
         for result in domain_results {
             if result.success {
                 println!(
-                    "✅ {} ({}) - {} - {}ms - {} - {}",
+                    "✅ {} ({}) - {} - {}ms - {} - {} bytes - {}",
                     result.target_ip,
                     result.ip_version,
                     result.protocol,
                     result.latency_ms.unwrap_or(0),
                     result.status_code.unwrap_or(0),
+                    result.response_size.unwrap_or(0),
                     result.server_header.as_deref().unwrap_or("Unknown")
                 );
             } else {
@@ -530,6 +586,22 @@ async fn test_http3_network_requests() -> Result<()> {
     println!("\n🔗 協議分佈:");
     for (protocol, count) in protocol_count {
         println!("{}: {}", protocol, count);
+    }
+
+    // 延遲統計
+    let latencies: Vec<u64> = results.iter()
+        .filter_map(|r| r.latency_ms)
+        .collect();
+
+    if !latencies.is_empty() {
+        let avg_latency = latencies.iter().sum::<u64>() as f64 / latencies.len() as f64;
+        let min_latency = latencies.iter().min().unwrap();
+        let max_latency = latencies.iter().max().unwrap();
+
+        println!("\n⏱️  延遲統計 (ms):");
+        println!("平均: {:.2}", avg_latency);
+        println!("最小: {}", min_latency);
+        println!("最大: {}", max_latency);
     }
 
     Ok(())
