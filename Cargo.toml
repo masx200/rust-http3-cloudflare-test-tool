@@ -10,7 +10,7 @@ license = "MIT"
 anyhow = "1.0"
 base64 = "0.21"
 bytes = "1.0"
-h3 = { version = "0.0.8", features = ["quinn"] }
+h3 = { version = "0.0.8" }
 quinn = { version = "0.10", features = ["rustls"] }
 rcgen = "0.11"
 reqwest = { version = "0.12.24", features = ["json","rustls-tls", "http3", "gzip", "brotli"] }
