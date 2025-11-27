@@ -2,7 +2,7 @@
 mod tests {
     use base64::{engine::general_purpose, Engine as _};
     use reqwest;
-    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+    use std::net::IpAddr;
     use trust_dns_proto::op::{Message, Query};
     use trust_dns_proto::rr::{Name, RecordType};
     use trust_dns_proto::serialize::binary::BinEncodable;
@@ -74,7 +74,7 @@ mod tests {
     ) -> Vec<IpAddr> {
         // 创建 DNS 查询
         let name = Name::from_ascii(domain).expect("Invalid domain name");
-        let mut query = Query::query(name, record_type);
+        let query = Query::query(name, record_type);
 
         // 创建 DNS 消息
         let mut message = Message::new();
@@ -84,9 +84,12 @@ mod tests {
 
         // 序列化 DNS 查询
         let mut request_bytes = Vec::new();
-        message
-            .emit(&mut request_bytes)
-            .expect("Failed to serialize DNS query");
+        {
+            let mut encoder = trust_dns_proto::serialize::binary::BinEncoder::new(&mut request_bytes);
+            message
+                .emit(&mut encoder)
+                .expect("Failed to serialize DNS query");
+        }
 
         // 使用 base64url 编码（不包含填充）
         let encoded_query = general_purpose::URL_SAFE_NO_PAD.encode(&request_bytes);
@@ -123,19 +126,20 @@ mod tests {
         // 提取 IP 地址
         let mut ip_addresses = Vec::new();
 
-        if let Some(answers) = dns_response.answers() {
+        let answers = dns_response.answers();
+        if !answers.is_empty() {
             for record in answers {
                 if record.record_type() == record_type {
                     if let Some(rdata) = record.data() {
                         match record.record_type() {
                             RecordType::A => {
-                                if let Some(ipv4) = rdata.ipv4_addr() {
-                                    ip_addresses.push(IpAddr::V4(ipv4));
+                                if let trust_dns_proto::rr::RData::A(ipv4) = rdata {
+                                    ip_addresses.push(IpAddr::V4(*ipv4));
                                 }
                             }
                             RecordType::AAAA => {
-                                if let Some(ipv6) = rdata.ipv6_addr() {
-                                    ip_addresses.push(IpAddr::V6(ipv6));
+                                if let trust_dns_proto::rr::RData::AAAA(ipv6) = rdata {
+                                    ip_addresses.push(IpAddr::V6(*ipv6));
                                 }
                             }
                             _ => {}

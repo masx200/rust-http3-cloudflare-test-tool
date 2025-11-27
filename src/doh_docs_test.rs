@@ -1,15 +1,12 @@
 #[cfg(test)]
 mod doh_docs_integration_tests {
     use anyhow::{anyhow, Result};
-    use regex::Regex;
     use reqwest::Client;
     use serde::{Deserialize, Serialize};
-    use std::collections::HashMap;
-    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    use std::time::{Duration, SystemTime};
     use tokio::time::sleep;
 
     const TARGET_DOMAIN: &str = "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io";
-    const DOH_URL: &str = "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query";
     const TAVILY_API_KEY: &str = "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"; // 需要配置实际的API密钥
 
     // 预期的IP地址（来自用户提供的数据）
@@ -118,13 +115,14 @@ mod doh_docs_integration_tests {
         println!("🔍 Found {} IP addresses: {:?}", ip_type, found_ips);
         println!("🎯 Expected {} addresses: {:?}", ip_type, expected_ips);
 
-        let found_set: std::collections::HashSet<&str> =
-            found_ips.iter().map(|s| s.as_str()).collect();
-        let expected_set: std::collections::HashSet<&str> = expected_ips.iter().cloned().collect();
+        let mut matches = 0;
+        for expected_ip in expected_ips {
+            if found_ips.iter().any(|found_ip| found_ip == expected_ip) {
+                matches += 1;
+            }
+        }
 
-        let matches = found_set.intersection(&expected_set).count();
-        let total_expected = expected_set.len();
-
+        let total_expected = expected_ips.len();
         println!(
             "✅ Matched {}/{} {} addresses",
             matches, total_expected, ip_type
