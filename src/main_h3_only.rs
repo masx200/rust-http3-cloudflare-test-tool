@@ -109,68 +109,58 @@ impl H3Tester {
             .await
             .context("创建 H3 客户端失败")?;
 
-        let drive = async move {
-            return Err::<(), ConnectionError>(future::poll_fn(|cx| driver.poll_close(cx)).await);
-        };
-
         // 7. 发送请求
-        let request_future = async {
-            let uri = format!("https://{}{}", self.config.domain, self.config.path);
-            info!("📡 发送 HTTP/3 请求: {}", uri);
+        let uri = format!("https://{}{}", self.config.domain, self.config.path);
+        info!("📡 发送 HTTP/3 请求: {}", uri);
 
-            let req = http::Request::builder()
-                .uri(uri)
-                .header("Host", &self.config.domain)
-                .header("User-Agent", "rust-http3-test-tool/1.0")
-                .body(())
-                .map_err(|e| anyhow!("构建请求失败: {}", e))?;
+        let req = http::Request::builder()
+            .uri(uri)
+            .header("Host", &self.config.domain)
+            .header("User-Agent", "rust-http3-test-tool/1.0")
+            .body(())
+            .map_err(|e| anyhow!("构建请求失败: {}", e))?;
 
-            let mut stream = send_request.send_request(req)
-                .await
-                .map_err(h3_error_to_anyhow)?;
+        let mut stream = send_request.send_request(req)
+            .await
+            .map_err(h3_error_to_anyhow)?;
 
-            stream.finish()
-                .await
-                .map_err(h3_error_to_anyhow)?;
+        stream.finish()
+            .await
+            .map_err(h3_error_to_anyhow)?;
 
-            let resp = stream.recv_response()
-                .await
-                .map_err(h3_error_to_anyhow)?;
+        let resp = stream.recv_response()
+            .await
+            .map_err(h3_error_to_anyhow)?;
 
-            let status = resp.status();
-            let version = resp.version();
+        let status = resp.status();
+        let version = resp.version();
 
-            info!("📨 收到响应: {} {:?}", status, version);
-            info!("📋 响应头: {:#?}", resp.headers());
+        info!("📨 收到响应: {} {:?}", status, version);
+        info!("📋 响应头: {:#?}", resp.headers());
 
-            // 读取响应体
-            let mut total_bytes = 0;
-            while let Some(chunk) = stream.recv_data().await.map_err(h3_error_to_anyhow)? {
-                total_bytes += chunk.remaining();
-            }
-
-            info!("✅ HTTP/3 测试成功！状态码: {}, 响应大小: {} 字节", status, total_bytes);
-
-            Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
-        };
-
-        let (req_res, drive_res) = tokio::join!(request_future, drive);
-
-        if let Err(err) = req_res {
-            error!("请求失败: {:?}", err);
-            return Err(anyhow!("请求失败: {:?}", err));
+        // 读取响应体
+        let mut total_bytes = 0;
+        while let Some(chunk) = stream.recv_data().await.map_err(h3_error_to_anyhow)? {
+            total_bytes += chunk.remaining();
         }
-        if let Err(err) = drive_res {
-            if err.is_h3_no_error() {
-                info!("连接以 H3_NO_ERROR 关闭");
-            } else {
-                error!("连接关闭错误: {:?}", err);
-                return Err(anyhow!("连接关闭错误: {:?}", err));
+
+        info!("✅ HTTP/3 测试成功！状态码: {}, 响应大小: {} 字节", status, total_bytes);
+
+        // 优雅地关闭连接 - 使用短暂超时等待
+        info!("✅ 测试完成，程序即将退出");
+
+        // 使用短暂的超时等待，而不是无限等待
+        tokio::select! {
+            _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
+                info!("等待超时，直接退出");
+            }
+            _ = client_endpoint.wait_idle() => {
+                info!("连接已空闲");
             }
         }
 
-        // 等待连接空闲
-        client_endpoint.wait_idle().await;
+        // 清理资源
+        drop(client_endpoint);
 
         Ok(())
     }
