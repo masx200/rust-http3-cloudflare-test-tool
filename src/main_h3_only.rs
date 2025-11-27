@@ -1,11 +1,18 @@
 // 纯 HTTP/3 测试工具 - 基于 h3 库
 use anyhow::{anyhow, Context, Result};
+use base64::{engine::general_purpose, Engine as _};
 use bytes::Buf;
 use clap::{Arg, Command};
 use h3_quinn::quinn;
+use reqwest::Client;
 use rustls_native_certs::load_native_certs;
+use std::collections::HashSet;
+use std::net::IpAddr;
 use std::sync::Arc;
 use tracing::{error, info};
+use trust_dns_proto::op::{Message, Query};
+use trust_dns_proto::rr::{Name, RecordType};
+use trust_dns_proto::serialize::binary::BinEncodable;
 
 // 错误转换辅助函数
 fn h3_error_to_anyhow(e: impl std::error::Error + Send + Sync + 'static) -> anyhow::Error {
@@ -21,6 +28,7 @@ pub struct H3TestConfig {
     pub path: String,
     pub doh_server: String,
     pub timeout_seconds: u64,
+    pub prefer_ipv6: bool,
 }
 
 impl Default for H3TestConfig {
@@ -31,8 +39,97 @@ impl Default for H3TestConfig {
             path: "/".to_string(),
             doh_server: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query".to_string(),
             timeout_seconds: 10,
+            prefer_ipv6: false,
         }
     }
+}
+
+// RFC 8484 DNS over HTTPS 查询函数
+async fn query_dns_over_https(
+    client: &Client,
+    domain: &str,
+    record_type: RecordType,
+    doh_server: &str,
+) -> Result<Vec<IpAddr>> {
+    // 创建 DNS 查询
+    let name = Name::from_ascii(domain)
+        .context(format!("无效的域名: {}", domain))?;
+    let query = Query::query(name, record_type);
+
+    // 创建 DNS 消息
+    let mut message = Message::new();
+    message.set_id(0); // RFC 8484 建议使用 ID 为 0 以提高缓存效率
+    message.set_recursion_desired(true);
+    message.add_query(query);
+
+    // 序列化 DNS 查询
+    let mut request_bytes = Vec::new();
+    {
+        let mut encoder = trust_dns_proto::serialize::binary::BinEncoder::new(&mut request_bytes);
+        message
+            .emit(&mut encoder)
+            .context("序列化 DNS 查询失败")?;
+    }
+
+    // 使用 base64url 编码（不包含填充）
+    let encoded_query = general_purpose::URL_SAFE_NO_PAD.encode(&request_bytes);
+
+    // 构建 DoH 请求 URL
+    let url = format!("{}?dns={}", doh_server, encoded_query);
+
+    info!("📡 正在通过 DoH 查询: {} ({})", domain, record_type);
+
+    // 发送 HTTPS GET 请求
+    let response = client
+        .get(&url)
+        .header("Accept", "application/dns-message")
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .context("发送 DoH 请求失败")?;
+
+    // 检查响应状态
+    if !response.status().is_success() {
+        return Err(anyhow!("DoH 服务器返回错误状态: {}", response.status()));
+    }
+
+    // 获取响应体
+    let response_bytes = response
+        .bytes()
+        .await
+        .context("读取响应体失败")?;
+
+    // 解析 DNS 响应
+    let dns_response =
+        Message::from_vec(&response_bytes).context("解析 DNS 响应失败")?;
+
+    // 提取 IP 地址
+    let mut ip_addresses = Vec::new();
+    let answers = dns_response.answers();
+
+    if !answers.is_empty() {
+        for record in answers {
+            if record.record_type() == record_type {
+                if let Some(rdata) = record.data() {
+                    match record.record_type() {
+                        RecordType::A => {
+                            if let trust_dns_proto::rr::RData::A(ipv4) = rdata {
+                                ip_addresses.push(IpAddr::V4(*ipv4));
+                            }
+                        }
+                        RecordType::AAAA => {
+                            if let trust_dns_proto::rr::RData::AAAA(ipv6) = rdata {
+                                ip_addresses.push(IpAddr::V6(*ipv6));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(ip_addresses)
 }
 
 pub struct H3Tester {
@@ -46,17 +143,81 @@ impl H3Tester {
 
     pub async fn test_connection(&self) -> Result<()> {
         info!("🚀 开始 HTTP/3 测试: {}:{}", self.config.domain, self.config.port);
+        info!("🔧 使用 DoH 服务器: {}", self.config.doh_server);
 
-        // 1. DNS 解析
-        let mut addrs = tokio::net::lookup_host((self.config.domain.as_str(), self.config.port))
-            .await
-            .context("DNS 解析失败")?;
+        // 1. 创建 HTTP 客户端用于 DoH 查询
+        let client = Client::builder()
+            .user_agent("rust-http3-test-tool/1.0")
+            .timeout(std::time::Duration::from_secs(self.config.timeout_seconds))
+            .build()
+            .context("创建 HTTP 客户端失败")?;
 
-        let addr = addrs.next().ok_or_else(|| anyhow::anyhow!("未找到 DNS 地址"))?;
+        // 2. 使用 RFC 8484 DoH 查询域名
+        let mut all_ips = HashSet::new();
 
-        info!("✅ DNS 解析成功: {} -> {}", self.config.domain, addr);
+        // 查询 A 记录 (IPv4)
+        match query_dns_over_https(&client, &self.config.domain, RecordType::A, &self.config.doh_server).await {
+            Ok(ipv4_addresses) => {
+                info!("✅ 找到 {} 个 IPv4 地址", ipv4_addresses.len());
+                for ip in &ipv4_addresses {
+                    info!("  📍 IPv4: {}", ip);
+                    all_ips.insert(*ip);
+                }
+            }
+            Err(e) => {
+                error!("❌ IPv4 查询失败: {:?}", e);
+            }
+        }
 
-        // 2. 加载证书
+        // 查询 AAAA 记录 (IPv6)
+        match query_dns_over_https(&client, &self.config.domain, RecordType::AAAA, &self.config.doh_server).await {
+            Ok(ipv6_addresses) => {
+                info!("✅ 找到 {} 个 IPv6 地址", ipv6_addresses.len());
+                for ip in &ipv6_addresses {
+                    info!("  📍 IPv6: {}", ip);
+                    all_ips.insert(*ip);
+                }
+            }
+            Err(e) => {
+                error!("❌ IPv6 查询失败: {:?}", e);
+            }
+        }
+
+        if all_ips.is_empty() {
+            return Err(anyhow!("未找到任何 IP 地址"));
+        }
+
+        // 3. 过滤 IP 地址（如果设置了 prefer_ipv6）
+        let mut ips: Vec<IpAddr> = all_ips.into_iter().collect();
+        ips.sort_by_key(|ip| ip.is_ipv6());
+
+        if self.config.prefer_ipv6 {
+            ips.reverse();
+        }
+
+        let ip_count = ips.len();
+        info!("✅ DNS 解析完成，共找到 {} 个 IP 地址", ip_count);
+
+        // 4. 为每个 IP 地址测试 HTTP/3 连接
+        let mut success_count = 0;
+        for (index, ip) in ips.iter().enumerate() {
+            info!("\n🔄 正在测试第 {}/{} 个 IP: {}:{}", index + 1, ip_count, ip, self.config.port);
+
+            if let Err(e) = self.test_single_connection(*ip).await {
+                error!("❌ IP {} 测试失败: {:?}", ip, e);
+            } else {
+                success_count += 1;
+                info!("✅ IP {} 测试成功", ip);
+            }
+        }
+
+        info!("\n📊 测试总结: {}/{} 个 IP 测试成功", success_count, ip_count);
+
+        Ok(())
+    }
+
+    pub async fn test_single_connection(&self, ip: IpAddr) -> Result<()> {
+        // 1. 加载证书
         let mut roots = rustls::RootCertStore::empty();
         match load_native_certs() {
             Ok(certs) => {
@@ -90,12 +251,13 @@ impl H3Tester {
         client_endpoint.set_default_client_config(client_config);
 
         // 5. 建立连接
+        let socket_addr = std::net::SocketAddr::new(ip, self.config.port);
         let start = std::time::Instant::now();
         let conn = client_endpoint
-            .connect(addr, &self.config.domain)
-            .context("连接建立失败")?
+            .connect(socket_addr, &self.config.domain)
+            .context(format!("连接建立失败: {}", socket_addr))?
             .await
-            .context("连接超时或被拒绝")?;
+            .context(format!("连接超时或被拒绝: {}", socket_addr))?;
 
         let connect_time = start.elapsed();
         info!("✅ QUIC 连接建立成功，耗时: {:?}", connect_time);
@@ -144,19 +306,6 @@ impl H3Tester {
 
         info!("✅ HTTP/3 测试成功！状态码: {}, 响应大小: {} 字节", status, total_bytes);
 
-        // 优雅地关闭连接 - 使用短暂超时等待
-        info!("✅ 测试完成，程序即将退出");
-
-        // 使用短暂的超时等待，而不是无限等待
-        tokio::select! {
-            _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
-                info!("等待超时，直接退出");
-            }
-            _ = client_endpoint.wait_idle() => {
-                info!("连接已空闲");
-            }
-        }
-
         // 清理资源
         drop(client_endpoint);
 
@@ -176,7 +325,7 @@ pub async fn run() -> Result<()> {
 
     let matches = Command::new("rust-http3-test-tool")
         .version("1.0.0")
-        .about("HTTP/3 客户端测试工具 - 基于 h3 库")
+        .about("HTTP/3 客户端测试工具 - 基于 h3 库，支持 RFC 8484 DoH")
         .arg(
             Arg::new("domain")
                 .short('d')
@@ -208,6 +357,19 @@ pub async fn run() -> Result<()> {
                 .help("超时时间（秒）")
                 .default_value("10"),
         )
+        .arg(
+            Arg::new("doh-server")
+                .long("doh-server")
+                .value_name("URL")
+                .help("DNS over HTTPS 服务器 URL")
+                .default_value("https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query"),
+        )
+        .arg(
+            Arg::new("prefer-ipv6")
+                .long("prefer-ipv6")
+                .help("优先使用 IPv6 地址")
+                .action(clap::ArgAction::SetTrue),
+        )
         .get_matches();
 
     let domain = matches.get_one::<String>("domain").unwrap().clone();
@@ -222,13 +384,16 @@ pub async fn run() -> Result<()> {
         .unwrap()
         .parse::<u64>()
         .unwrap_or(10);
+    let doh_server = matches.get_one::<String>("doh-server").unwrap().clone();
+    let prefer_ipv6 = matches.get_flag("prefer-ipv6");
 
     let config = H3TestConfig {
         domain,
         port,
         path,
-        doh_server: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query".to_string(),
+        doh_server,
         timeout_seconds: timeout,
+        prefer_ipv6,
     };
 
     let tester = H3Tester::new(config);
