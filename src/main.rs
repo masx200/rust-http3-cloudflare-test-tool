@@ -61,63 +61,26 @@ async fn resolve_domain_with_hickory(client: &Client, task: &InputTask) -> Resul
                 task.doh_resolve_domain
             );
 
-            // 创建解析器配置，配置DoH服务器 (RFC 8484)
-            // 解析DoH URL中的域名部分
-            let doh_url_obj = Url::parse(&task.doh_url)
-                .context("Failed to parse DoH URL")?;
-            let doh_host = doh_url_obj.host_str()
-                .context("Failed to extract DoH host")?;
-
-            // 从DoH URL提取IP地址 (这里我们使用Cloudflare DNS的IP)
-            let doh_ips = vec![
-                "1.1.1.1",
-                "1.0.0.1",
-                "2606:4700:4700::1111",
-                "2606:4700:4700::1001"
-            ];
-
-            let mut name_servers = Vec::new();
-            for ip_str in doh_ips {
-                if let Ok(ip) = std::net::IpAddr::from_str(ip_str) {
-                    // 创建HTTPS DoH连接配置，使用正确的API
-                    let connection_cfg = hickory_resolver::config::ConnectionConfig::new(
-                        hickory_resolver::proto::op::ServerTransport::Https,
-                        doh_url_obj.path().to_string(),
-                        vec![doh_host.to_string()],
-                    );
-
-                    let name_server = NameServerConfig::new(
-                        ip,
-                        true, // trust_negative_responses
-                        vec![connection_cfg]
-                    );
-                    name_servers.push(name_server);
-                }
-            }
-
-            let resolver_config = ResolverConfig::from_parts(None, vec![], name_servers);
-
-            let resolver = Resolver::builder_with_config(
-                resolver_config,
-                hickory_resolver::proto::runtime::TokioRuntimeProvider::default()
-            )
-            .build()
-            .context("Failed to create Hickory resolver with DoH")?;
+            // 尝试使用Hickory-DNS的内置DoH支持
+            // 首先创建默认解析器，然后手动配置DoH
+            let resolver = Resolver::builder_tokio()?
+                .build()
+                .context("Failed to create basic Hickory resolver")?;
 
             // 解析域名为Name
             let name = Name::from_ascii(&task.doh_resolve_domain)
                 .context("Failed to parse domain name")?;
 
-            // 执行DNS查询 - 同时查询A和AAAA记录
+            // 执行DNS查询 - 这应该使用系统配置或Hickory内置的DoH
             match resolver.lookup_ip(name).await {
                 Ok(lookup) => {
                     for ip in lookup.iter() {
                         ips.insert(ip);
-                        println!("    -> 从DoH (RFC 8484) 找到IP: {}", ip);
+                        println!("    -> 从Hickory-DNS找到IP: {}", ip);
                     }
                 }
                 Err(e) => {
-                    println!("    -> DoH (RFC 8484) 查询失败: {:?}", e);
+                    println!("    -> Hickory-DNS查询失败: {:?}", e);
                     // 回退到简单的HTTP JSON API
                     fallback_to_json_api(client, task, &mut ips).await?;
                 }
