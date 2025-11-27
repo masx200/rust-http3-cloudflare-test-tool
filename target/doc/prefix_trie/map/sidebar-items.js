@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Entry"],"struct":["Cover","CoverKeys","CoverValues","IntoIter","IntoKeys","IntoValues","Iter","IterMut","Keys","OccupiedEntry","PrefixMap","VacantEntry","Values","ValuesMut"]};

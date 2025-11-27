@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["ROOTS"],"enum":["DnsError","ProtoErrorKind"],"mod":["access_control","op","rr","runtime","serialize","tcp","udp","xfer"],"struct":["ForwardNSData","NoRecords","ProtoError"]};

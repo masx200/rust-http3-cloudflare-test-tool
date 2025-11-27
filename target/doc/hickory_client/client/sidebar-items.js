@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["Client","ClientStreamingResponse","MemoizeClientHandle"],"trait":["ClientHandle"]};

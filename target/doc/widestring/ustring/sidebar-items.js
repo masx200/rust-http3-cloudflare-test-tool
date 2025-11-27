@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["Drain","U16String","U32String"],"type":["WideString"]};

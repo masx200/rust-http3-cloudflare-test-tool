@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["AAAA","Ipv6Addr"]};

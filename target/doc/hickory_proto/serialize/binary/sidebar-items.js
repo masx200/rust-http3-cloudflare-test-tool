@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["DecodeError","EncodeMode","NameEncoding","RDataEncoding"],"struct":["BinDecoder","BinEncoder","ModalEncoder","Restrict","Verified"],"trait":["BinDecodable","BinEncodable","RestrictedMath"]};

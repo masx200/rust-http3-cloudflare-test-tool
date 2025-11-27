@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["get_domain","get_search_list","is_round_robin_enabled"]};

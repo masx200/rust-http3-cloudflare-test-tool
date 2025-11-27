@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["DecodeUtf16","DecodeUtf16Lossy","DecodeUtf32","DecodeUtf32Lossy","EncodeUtf16","EncodeUtf32","EncodeUtf8"]};

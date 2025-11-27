@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["CLOUDFLARE","GOOGLE","QUAD9"],"enum":["LookupIpStrategy","OpportunisticEncryption","ProtocolConfig","ResolveHosts","ServerOrderingStrategy"],"struct":["ConnectionConfig","NameServerConfig","OpportunisticEncryptionConfig","OpportunisticEncryptionPersistence","ResolverConfig","ResolverOpts","ServerGroup"]};

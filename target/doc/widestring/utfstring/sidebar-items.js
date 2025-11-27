@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["DrainUtf16","DrainUtf32","Utf16String","Utf32String"],"type":["WideUtfString"]};

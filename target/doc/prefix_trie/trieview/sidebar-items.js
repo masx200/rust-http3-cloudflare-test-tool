@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["UnionItem"],"struct":["CoveringDifference","CoveringDifferenceMut","Difference","DifferenceItem","DifferenceMut","DifferenceMutItem","Intersection","IntersectionMut","TrieView","TrieViewMut","Union","UnionMut"],"trait":["AsView","AsViewMut"]};

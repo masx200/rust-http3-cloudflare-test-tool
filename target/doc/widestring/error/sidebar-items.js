@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["NulError"],"struct":["ContainsNul","DecodeUtf16Error","DecodeUtf32Error","MissingNulTerminator","Utf16Error","Utf32Error"]};
