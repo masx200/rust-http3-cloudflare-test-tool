@@ -131,7 +131,7 @@ async fn resolve\_https\_record(client: \&Client, domain: &str) \-\>
 Result\<Vec\<String\>\> {\
 // 使用 Type 65 (HTTPS) 查询\
 let dns\_url \= format\!(\
-"https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query?name={}\&type=HTTPS",\
+"https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/security.cloudflare-dns.com/dns-query?name={}\&type=HTTPS",\
 domain\
 );
 
