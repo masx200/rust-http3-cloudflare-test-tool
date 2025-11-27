@@ -1,6 +1,7 @@
 // HTTP/3 网络请求测试 - 使用专门的HTTP/3库
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose, Engine as _};
+use h3::{client::Client, quic::Client as QuicClient};
 use quinn::{ClientConfig, Endpoint, TransportConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
