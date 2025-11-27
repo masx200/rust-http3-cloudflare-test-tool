@@ -6,9 +6,7 @@ use std::net::IpAddr;
 use std::time::Instant;
 
 // 重用现有的 DNS 解析模块
-mod http3_test;
-
-use http3_test::{InputTask, TestResult, resolve_domain_with_rfc8484};
+use crate::http3_test::{InputTask, TestResult, resolve_domain_with_rfc8484};
 
 // HTTP/3 测试配置
 #[derive(Debug, Clone, Deserialize, Serialize)]

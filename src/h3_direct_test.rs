@@ -151,7 +151,7 @@ impl H3Tester {
         ];
 
         let mut transport_config = TransportConfig::default();
-        transport_config.max_idle_timeout(Some(quinn::IdleTimeout::from(quinn::Time::from_secs(10))));
+        transport_config.max_idle_timeout(Some(quinn::IdleTimeout::from(Duration::from_secs(10))));
         transport_config.max_concurrent_uni_streams(100u32.into());
         transport_config.max_concurrent_bidi_streams(100u32.into());
         transport_config.datagram_send_buffer_size(1024 * 1024);
