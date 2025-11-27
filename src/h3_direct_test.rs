@@ -121,7 +121,7 @@ impl H3TestResult {
 // --- 3. HTTP/3 测试器 ---
 pub struct H3Tester {
     client_config: ClientConfig,
-    transport_config: TransportConfig,
+    transport_config: Arc<TransportConfig>,
 }
 
 impl H3Tester {
@@ -138,16 +138,8 @@ impl H3Tester {
             .with_root_certificates(root_store)
             .with_no_client_auth();
         let mut client_config = ClientConfig::new(Arc::new(crypto));
-        root_store.add_parsable_certificates(
-            rustls_native_certs::load_native_certs()
-                .context("Failed to load native certificates")?
-        );
 
-        let tls_config = RustlsClientConfig::builder()
-            .with_root_certificates(root_store)
-            .with_no_client_auth();
-
-        client_config.crypto = Arc::new(tls_config);
+        client_config.crypto = Arc::new(crypto);
 
         // 配置 ALPN
         client_config.alpn_protocols = vec![
@@ -159,10 +151,11 @@ impl H3Tester {
         ];
 
         let mut transport_config = TransportConfig::default();
-        transport_config.max_idle_timeout(Some(Duration::from_secs(10)));
+        transport_config.max_idle_timeout(Some(quinn::IdleTimeout::from(quinn::Time::from_secs(10))));
         transport_config.max_concurrent_uni_streams(100u32.into());
         transport_config.max_concurrent_bidi_streams(100u32.into());
         transport_config.datagram_send_buffer_size(1024 * 1024);
+        let transport_config = Arc::new(transport_config);
 
         Ok(Self {
             client_config,
@@ -326,7 +319,7 @@ impl Clone for H3Tester {
     fn clone(&self) -> Self {
         Self {
             client_config: self.client_config.clone(),
-            transport_config: self.transport_config.clone(),
+            transport_config: Arc::clone(&self.transport_config),
         }
     }
 }
