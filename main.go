@@ -215,8 +215,6 @@ func runTests(tasks []InputTask) []TestResult {
 
 // DNS解析函数
 func resolveDomain(task *InputTask) ([]string, error) {
-	var ips []string
-
 	// 直接IP模式
 	if len(task.DirectIPs) > 0 && task.ResolveMode == "direct" {
 		fmt.Printf("    -> 使用直接指定的IP: %v\n", task.DirectIPs)
