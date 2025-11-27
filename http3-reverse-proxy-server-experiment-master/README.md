@@ -65,7 +65,7 @@ Usage of reverse-proxy-server.exe:
   -upstream-protocol string
         upstream-protocol,supports (h3,h2,h2c,http/1.1) (default "h3")
   -upstream-server string
-        upstream-server,example "https://workers.speed.cloudflare.com/"
+        upstream-server,example "https://speed.cloudflare.com/"
 ```
 
 ```
