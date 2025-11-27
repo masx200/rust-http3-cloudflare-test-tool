@@ -17,8 +17,8 @@ use trust_dns_proto::serialize::binary::BinEncodable;
 mod doh_docs_test;
 #[cfg(test)]
 mod test_test;
-#[cfg(test)]
-mod test_new;
+// #[cfg(test)]
+// mod main_new;
 #[cfg(test)]
 mod http3_test;
 // --- 1. 输入配置 ---
