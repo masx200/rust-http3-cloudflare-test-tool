@@ -2,8 +2,6 @@
 use anyhow::{anyhow, Context, Result};
 use bytes::Buf;
 use clap::{Arg, Command};
-use futures::future;
-use h3::error::ConnectionError;
 use h3_quinn::quinn;
 use rustls_native_certs::load_native_certs;
 use std::sync::Arc;
@@ -105,7 +103,7 @@ impl H3Tester {
         // 6. 创建 H3 客户端
         let quinn_conn = h3_quinn::Connection::new(conn);
 
-        let (mut driver, mut send_request) = h3::client::new(quinn_conn)
+        let (driver, mut send_request) = h3::client::new(quinn_conn)
             .await
             .context("创建 H3 客户端失败")?;
 
