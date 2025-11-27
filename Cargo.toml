@@ -37,7 +37,7 @@ rand = "0.9"
 
 # 其他 Hickory-DNS 相关依赖
 hickory-proto = { path = "./hickory-dns-main/crates/proto", features = ["dnssec-ring"] }
-rustls = { version = "0.23.35", features = ["std", "ring"] , default-features = false}
+rustls = { version = "0.23.35", features = ["std", "ring"] }
 webpki-roots = "1"
 ring = "0.17"
 
@@ -54,5 +54,3 @@ rustls-pki-types = "1.10"
 [patch.crates-io]
 # 如果需要覆盖某些依赖版本，可以在这里添加
 # reqwest = { path = "./reqwest-master/reqwest-master" }
-# 强制 rustls 使用 ring 而不是 aws-lc-rs
-rustls = { version = "0.23.35", features = ["ring"], default-features = false }
