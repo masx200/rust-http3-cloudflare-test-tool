@@ -412,9 +412,9 @@ async fn test_http3_network_requests() -> Result<()> {
             "resolve_mode": "https"
         },
         {
-            "doh_resolve_domain": "google.com",
-            "test_sni_host": "google.com",
-            "test_host_header": "google.com",
+            "doh_resolve_domain": "dash.cloudflare.com",
+            "test_sni_host": "dash.cloudflare.com",
+            "test_host_header": "dash.cloudflare.com",
             "doh_url": "https://dns.google/resolve",
             "port": 443,
             "prefer_ipv6": false,
@@ -477,7 +477,8 @@ async fn test_http3_network_requests() -> Result<()> {
     println!("\n=== HTTP/3 測試結果 ===");
 
     // 按域名分組顯示結果
-    let mut grouped_results: std::collections::HashMap<String, Vec<&TestResult>> = std::collections::HashMap::new();
+    let mut grouped_results: std::collections::HashMap<String, Vec<&TestResult>> =
+        std::collections::HashMap::new();
     for result in &results {
         grouped_results
             .entry(result.domain_used.clone())
@@ -491,7 +492,8 @@ async fn test_http3_network_requests() -> Result<()> {
 
         for result in domain_results {
             if result.success {
-                println!("✅ {} ({}) - {} - {}ms - {} - {}",
+                println!(
+                    "✅ {} ({}) - {} - {}ms - {} - {}",
                     result.target_ip,
                     result.ip_version,
                     result.protocol,
@@ -500,7 +502,8 @@ async fn test_http3_network_requests() -> Result<()> {
                     result.server_header.as_deref().unwrap_or("Unknown")
                 );
             } else {
-                println!("❌ {} ({}) - 錯誤: {}",
+                println!(
+                    "❌ {} ({}) - 錯誤: {}",
                     result.target_ip,
                     result.ip_version,
                     result.error_msg.as_deref().unwrap_or("未知錯誤")
@@ -516,7 +519,8 @@ async fn test_http3_network_requests() -> Result<()> {
     println!("失敗: {}", results.len() - successful);
 
     // 協議統計
-    let mut protocol_count: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut protocol_count: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
     for result in &results {
         if result.success {
             *protocol_count.entry(result.protocol.clone()).or_insert(0) += 1;

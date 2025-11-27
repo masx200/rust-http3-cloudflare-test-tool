@@ -183,7 +183,7 @@ mod doh_docs_integration_tests {
 
         // 首先测试一个已知的域名来验证DoH API是否工作
         let test_domains = vec![
-            ("google.com", "known working domain"),
+            ("dash.cloudflare.com", "known working domain"),
             ("cloudflare.com", "known working domain"),
             (TARGET_DOMAIN, "target domain"),
         ];
