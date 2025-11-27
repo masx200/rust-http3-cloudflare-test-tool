@@ -140,7 +140,7 @@ async fn query_dns_over_https(
                         }
                         RecordType::AAAA => {
                             if let trust_dns_proto::rr::RData::AAAA(ipv6) = rdata {
-                                ip_addresses.push(IpAddr::V6(*ip6));
+                                ip_addresses.push(IpAddr::V6(*ipv6));
                             }
                         }
                         _ => {}
@@ -306,13 +306,13 @@ async fn test_http3_connectivity(task: InputTask, ip: IpAddr, dns_source: String
     let cert_params = CertificateParams::default();
     let cert = Certificate::from_params(cert_params).unwrap();
     let cert_der = CertificateDer::from(cert.serialize_der().unwrap());
-    let priv_key = PrivateKeyDer::Pkcs8(cert.serialize_private_key_der());
+    let priv_key = PrivateKeyDer::Pkcs8(cert.serialize_private_key_der().into());
 
     // 配置TLS
     let mut tls_config = rustls::ClientConfig::builder()
-        .with_root_certificates(rustls::RootCertStore {
-            roots: webpki_roots::TLS_SERVER_ROOTS.0.clone(),
-        })
+        .with_root_certificates(rustls::RootCertStore::from_iter(
+            webpki_roots::TLS_SERVER_ROOTS.to_vec()
+        ))
         .with_no_client_auth();
     
     // 配置QUIC传输
