@@ -122,6 +122,14 @@ async fn doh_query_manual(
     let dns_response = Message::from_vec(&response_body)
         .context("Failed to decode DNS binary message (invalid data)")?;
 
+    // 6. 检查DNS响应状态码
+    if dns_response.response_code() != trust_dns_resolver::proto::op::ResponseCode::NoError {
+        return Err(anyhow::anyhow!(
+            "DNS server returned error code: {:?}",
+            dns_response.response_code()
+        ));
+    }
+
     Ok(dns_response)
 }
 
@@ -135,10 +143,29 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
             for record in response.answers() {
                 if let Some(rdata) = record.data() {
                     // 检查是否是 SVCB 记录并提取 IP hints
-                    if let RData::SVCB(_svc_rec) = rdata {
-                        // TODO: 实现SVCB参数解析以提取IPv4/IPv6 hints
-                        // 暂时跳过，只使用A/AAAA记录作为兜底
-                        println!("    -> 找到SVCB记录，但参数解析暂未实现");
+                    if let RData::SVCB(svc_rec) = rdata {
+                        println!("    -> 找到SVCB记录，开始解析参数...");
+
+                        // 解析 SVCB 参数查找 IPv4/IPv6 hints
+                        for param in svc_rec.svc_params() {
+                            match param {
+                                trust_dns_resolver::proto::rr::rdata::svcb::SVCBParam::Ipv4Hint(ipv4_hints) => {
+                                    println!("    -> 找到IPv4 hints: {:?}", ipv4_hints);
+                                    for ip in ipv4_hints {
+                                        ips.insert(IpAddr::V4(*ip));
+                                    }
+                                },
+                                trust_dns_resolver::proto::rr::rdata::svcb::SVCBParam::Ipv6Hint(ipv6_hints) => {
+                                    println!("    -> 找到IPv6 hints: {:?}", ipv6_hints);
+                                    for ip in ipv6_hints {
+                                        ips.insert(IpAddr::V6(*ip));
+                                    }
+                                },
+                                _ => {
+                                    // 其他参数暂不处理
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -151,14 +178,27 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
         println!("    -> HTTPS记录中未找到 IP，尝试 A/AAAA 记录查询作为兜底...");
 
         // 查询 A 记录
-        if let Ok(response) = doh_query_manual(client, doh_url, domain, RecordType::A).await {
-            // 检查 Answers 部分
-            extract_a_aaaa_ips(response.answers(), &mut ips);
+        match doh_query_manual(client, doh_url, domain, RecordType::A).await {
+            Ok(response) => {
+                println!("    -> A记录查询成功，找到 {} 条记录", response.answers().len());
+                extract_a_aaaa_ips(response.answers(), &mut ips);
+                if !ips.is_empty() {
+                    println!("    -> 从A记录提取到 {} 个IPv4地址", ips.iter().filter(|ip| ip.is_ipv4()).count());
+                }
+            },
+            Err(e) => println!("    -> A记录查询失败: {:?}", e),
         }
 
         // 查询 AAAA 记录
-        if let Ok(response) = doh_query_manual(client, doh_url, domain, RecordType::AAAA).await {
-            extract_a_aaaa_ips(response.answers(), &mut ips);
+        match doh_query_manual(client, doh_url, domain, RecordType::AAAA).await {
+            Ok(response) => {
+                println!("    -> AAAA记录查询成功，找到 {} 条记录", response.answers().len());
+                extract_a_aaaa_ips(response.answers(), &mut ips);
+                if !ips.is_empty() {
+                    println!("    -> 从AAAA记录提取到 {} 个IPv6地址", ips.iter().filter(|ip| ip.is_ipv6()).count());
+                }
+            },
+            Err(e) => println!("    -> AAAA记录查询失败: {:?}", e),
         }
     }
 
