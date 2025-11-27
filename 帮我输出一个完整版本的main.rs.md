@@ -234,7 +234,7 @@ to create DoH client");
         // 另一个测试场景：使用 Cloudflare IP 优选域名获取 IP，但用另一个域名进行 SNI/Host 验证
         /\*
         ,{
-            "doh\_resolve\_domain": "speed.cloudflare.com",
+            "doh\_resolve\_domain": "local-aria2-webui.masx200.ddns-ip.net",
             "test\_sni\_host": "some-other-domain.com",
             "test\_host\_header": "some-other-domain.com",
             "doh\_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",

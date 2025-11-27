@@ -840,7 +840,7 @@ pub const GOOGLE: ServerGroup<'static> = ServerGroup {
 
 /// Cloudflare's 1.1.1.1 DNS service configuration.
 ///
-/// See <https://speed.cloudflare.com/dns/> for more information.
+/// See <https://local-aria2-webui.masx200.ddns-ip.net/dns/> for more information.
 pub const CLOUDFLARE: ServerGroup<'static> = ServerGroup {
     ips: &[
         IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)),

@@ -438,7 +438,7 @@ mod tests {
         let svcb_display = svcb.to_string();
 
         // add back the name, etc...
-        let svcb_display = format!("speed.cloudflare.com. 299 IN SVCB {svcb_display}");
+        let svcb_display = format!("local-aria2-webui.masx200.ddns-ip.net. 299 IN SVCB {svcb_display}");
         let svcb_display = parse_record(&svcb_display);
 
         assert_eq!(svcb, svcb_display);
@@ -620,7 +620,7 @@ mod tests {
         }
     }
 
-    const CF_SVCB_RECORD: &str = "speed.cloudflare.com. 1664 IN SVCB 1 . alpn=\"http/1.1,h2\" ipv4hint=162.159.137.85,162.159.138.85 ech=AEX+DQBBtgAgACBMmGJQR02doup+5VPMjYpe5HQQ/bpntFCxDa8LT2PLAgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA= ipv6hint=2606:4700:7::a29f:8955,2606:4700:7::a29f:8a5";
-    const CF_HTTPS_RECORD: &str = "speed.cloudflare.com. 1664 IN HTTPS 1 . alpn=\"http/1.1,h2\" ipv4hint=162.159.137.85,162.159.138.85 ech=AEX+DQBBtgAgACBMmGJQR02doup+5VPMjYpe5HQQ/bpntFCxDa8LT2PLAgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA= ipv6hint=2606:4700:7::a29f:8955,2606:4700:7::a29f:8a5";
+    const CF_SVCB_RECORD: &str = "local-aria2-webui.masx200.ddns-ip.net. 1664 IN SVCB 1 . alpn=\"http/1.1,h2\" ipv4hint=162.159.137.85,162.159.138.85 ech=AEX+DQBBtgAgACBMmGJQR02doup+5VPMjYpe5HQQ/bpntFCxDa8LT2PLAgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA= ipv6hint=2606:4700:7::a29f:8955,2606:4700:7::a29f:8a5";
+    const CF_HTTPS_RECORD: &str = "local-aria2-webui.masx200.ddns-ip.net. 1664 IN HTTPS 1 . alpn=\"http/1.1,h2\" ipv4hint=162.159.137.85,162.159.138.85 ech=AEX+DQBBtgAgACBMmGJQR02doup+5VPMjYpe5HQQ/bpntFCxDa8LT2PLAgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA= ipv6hint=2606:4700:7::a29f:8955,2606:4700:7::a29f:8a5";
     const GOOGLE_HTTPS_RECORD: &str = "google.com 21132 IN HTTPS 1 . alpn=\"h2,h3\"";
 }

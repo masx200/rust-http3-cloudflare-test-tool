@@ -52,9 +52,9 @@ impl Default for H3IntegrationTest {
     fn default() -> Self {
         Self {
             input_task: InputTask {
-                doh_resolve_domain: "speed.cloudflare.com".to_string(),
-                test_sni_host: "speed.cloudflare.com".to_string(),
-                test_host_header: "speed.cloudflare.com".to_string(),
+                doh_resolve_domain: "local-aria2-webui.masx200.ddns-ip.net".to_string(),
+                test_sni_host: "local-aria2-webui.masx200.ddns-ip.net".to_string(),
+                test_host_header: "local-aria2-webui.masx200.ddns-ip.net".to_string(),
                 doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query"
                     .to_string(),
                 port: 443,
@@ -382,9 +382,9 @@ pub async fn run_http3_integration_tests() -> Result<()> {
     let test_configs = vec![
         H3IntegrationTest {
             input_task: InputTask {
-                doh_resolve_domain: "speed.cloudflare.com".to_string(),
-                test_sni_host: "speed.cloudflare.com".to_string(),
-                test_host_header: "speed.cloudflare.com".to_string(),
+                doh_resolve_domain: "local-aria2-webui.masx200.ddns-ip.net".to_string(),
+                test_sni_host: "local-aria2-webui.masx200.ddns-ip.net".to_string(),
+                test_host_header: "local-aria2-webui.masx200.ddns-ip.net".to_string(),
                 doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query"
                     .to_string(),
                 port: 443,
@@ -586,9 +586,9 @@ pub fn get_default_integration_test_configs() -> Vec<H3IntegrationTest> {
     vec![
         H3IntegrationTest {
             input_task: InputTask {
-                doh_resolve_domain: "speed.cloudflare.com".to_string(),
-                test_sni_host: "speed.cloudflare.com".to_string(),
-                test_host_header: "speed.cloudflare.com".to_string(),
+                doh_resolve_domain: "local-aria2-webui.masx200.ddns-ip.net".to_string(),
+                test_sni_host: "local-aria2-webui.masx200.ddns-ip.net".to_string(),
+                test_host_header: "local-aria2-webui.masx200.ddns-ip.net".to_string(),
                 doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query"
                     .to_string(),
                 port: 443,
@@ -604,9 +604,9 @@ pub fn get_default_integration_test_configs() -> Vec<H3IntegrationTest> {
         },
         H3IntegrationTest {
             input_task: InputTask {
-                doh_resolve_domain: "speed.cloudflare.com".to_string(),
-                test_sni_host: "speed.cloudflare.com".to_string(),
-                test_host_header: "speed.cloudflare.com".to_string(),
+                doh_resolve_domain: "local-aria2-webui.masx200.ddns-ip.net".to_string(),
+                test_sni_host: "local-aria2-webui.masx200.ddns-ip.net".to_string(),
+                test_host_header: "local-aria2-webui.masx200.ddns-ip.net".to_string(),
                 doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query"
                     .to_string(),
                 port: 443,

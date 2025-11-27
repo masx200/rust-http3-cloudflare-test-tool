@@ -80,7 +80,7 @@ func CreateHTTPRoundTripperMiddleWareOfUpStreamServerURL(upstreamServerURLstring
 
 // 主程序入口
 func main() {
-	strArgupstreamServer := flag.String("upstream-server", "", "upstream-server,example \"https://speed.cloudflare.com/\"")
+	strArgupstreamServer := flag.String("upstream-server", "", "upstream-server,example \"https://local-aria2-webui.masx200.ddns-ip.net/\"")
 	intArghttpPort := flag.Int("http-port", 18080, "http-port")
 	int2ArghttpsPort := flag.Int("https-port", 18443, "https-port")
 	StringArgprotocol := flag.String("upstream-protocol", "h3", "upstream-protocol,supports (h3,h2,h2c,http/1.1)")

@@ -259,27 +259,27 @@ async fn main() -> Result<()> {
             "resolve_mode": "https"
         },
         {
-            "doh_resolve_domain": "speed.cloudflare.com",
-            "test_sni_host": "speed.cloudflare.com",
-            "test_host_header": "speed.cloudflare.com",
+            "doh_resolve_domain": "local-aria2-webui.masx200.ddns-ip.net",
+            "test_sni_host": "local-aria2-webui.masx200.ddns-ip.net",
+            "test_host_header": "local-aria2-webui.masx200.ddns-ip.net",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": true,
             "resolve_mode": "https"
         },
         {
-            "doh_resolve_domain": "speed.cloudflare.com",
-            "test_sni_host": "speed.cloudflare.com",
-            "test_host_header": "speed.cloudflare.com",
+            "doh_resolve_domain": "local-aria2-webui.masx200.ddns-ip.net",
+            "test_sni_host": "local-aria2-webui.masx200.ddns-ip.net",
+            "test_host_header": "local-aria2-webui.masx200.ddns-ip.net",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": true,
             "resolve_mode": "a_aaaa"
         },
         {
-            "doh_resolve_domain": "speed.cloudflare.com",
-            "test_sni_host": "speed.cloudflare.com",
-            "test_host_header": "speed.cloudflare.com",
+            "doh_resolve_domain": "local-aria2-webui.masx200.ddns-ip.net",
+            "test_sni_host": "local-aria2-webui.masx200.ddns-ip.net",
+            "test_host_header": "local-aria2-webui.masx200.ddns-ip.net",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": true,

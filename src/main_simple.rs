@@ -75,7 +75,11 @@ async fn resolve_domain_simple(client: &Client, task: &InputTask) -> Result<Vec<
     }
 
     // 如果A记录查询失败，尝试一些知名的Cloudflare IP作为备用
-    if ips.is_empty() && task.doh_resolve_domain.contains("speed.cloudflare.com") {
+    if ips.is_empty()
+        && task
+            .doh_resolve_domain
+            .contains("local-aria2-webui.masx200.ddns-ip.net")
+    {
         println!("    -> 使用备用的Cloudflare IP...");
         // 添加一些已知的Cloudflare IP
         if let Ok(ip1) = IpAddr::from_str("162.159.140.220") {
@@ -196,18 +200,18 @@ async fn main() -> Result<()> {
             "resolve_mode": "https"
         },
         {
-            "doh_resolve_domain": "speed.cloudflare.com",
-            "test_sni_host": "speed.cloudflare.com",
-            "test_host_header": "speed.cloudflare.com",
+            "doh_resolve_domain": "local-aria2-webui.masx200.ddns-ip.net",
+            "test_sni_host": "local-aria2-webui.masx200.ddns-ip.net",
+            "test_host_header": "local-aria2-webui.masx200.ddns-ip.net",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": true,
             "resolve_mode": "https"
         },
         {
-            "doh_resolve_domain": "speed.cloudflare.com",
-            "test_sni_host": "speed.cloudflare.com",
-            "test_host_header": "speed.cloudflare.com",
+            "doh_resolve_domain": "local-aria2-webui.masx200.ddns-ip.net",
+            "test_sni_host": "local-aria2-webui.masx200.ddns-ip.net",
+            "test_host_header": "local-aria2-webui.masx200.ddns-ip.net",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": true,

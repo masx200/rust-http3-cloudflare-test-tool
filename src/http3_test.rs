@@ -264,7 +264,7 @@ pub async fn resolve_domain_with_rfc8484(client: &Client, task: &InputTask) -> R
         }
     }
 
-    if ips.is_empty() && task.doh_resolve_domain.contains("speed.cloudflare.com") {
+    if ips.is_empty() && task.doh_resolve_domain.contains("local-aria2-webui.masx200.ddns-ip.net") {
         println!("    -> 使用備用的Cloudflare IP...");
         add_fallback_cloudflare_ips(&mut ips);
     }
@@ -451,9 +451,9 @@ async fn test_http3_network_requests() -> Result<()> {
     let input_json = r#"
     [
         {
-            "doh_resolve_domain": "speed.cloudflare.com",
-            "test_sni_host": "speed.cloudflare.com",
-            "test_host_header": "speed.cloudflare.com",
+            "doh_resolve_domain": "local-aria2-webui.masx200.ddns-ip.net",
+            "test_sni_host": "local-aria2-webui.masx200.ddns-ip.net",
+            "test_host_header": "local-aria2-webui.masx200.ddns-ip.net",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
@@ -461,9 +461,9 @@ async fn test_http3_network_requests() -> Result<()> {
             "test_path": "/cdn-cgi/trace"
         },
         {
-            "doh_resolve_domain": "speed.cloudflare.com",
-            "test_sni_host": "speed.cloudflare.com",
-            "test_host_header": "speed.cloudflare.com",
+            "doh_resolve_domain": "local-aria2-webui.masx200.ddns-ip.net",
+            "test_sni_host": "local-aria2-webui.masx200.ddns-ip.net",
+            "test_host_header": "local-aria2-webui.masx200.ddns-ip.net",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,

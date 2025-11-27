@@ -37,7 +37,7 @@ impl Default for ComprehensiveTestConfig {
         Self {
             test_mode: "all".to_string(),
             target_domains: vec![
-                "speed.cloudflare.com".to_string(),
+                "local-aria2-webui.masx200.ddns-ip.net".to_string(),
                 "google.com".to_string(),
                 "facebook.com".to_string(),
             ],
@@ -162,7 +162,7 @@ pub fn parse_command_line() -> ComprehensiveTestConfig {
                 .long("domains")
                 .value_name("DOMAINS")
                 .help("Target domains (comma-separated)")
-                .default_value("speed.cloudflare.com,google.com,facebook.com"),
+                .default_value("local-aria2-webui.masx200.ddns-ip.net,google.com,facebook.com"),
         )
         .arg(
             Arg::new("output")
@@ -678,8 +678,8 @@ pub fn print_help() {
     println!("  -V, --version              显示版本信息");
     println!("");
     println!("示例:");
-    println!("  {} -m native_h3 -d speed.cloudflare.com,google.com", std::env::args().next().unwrap_or_else(|| "program".to_string()));
-    println!("  {} --mode all --domains speed.cloudflare.com --ipv6 --output table", std::env::args().next().unwrap_or_else(|| "program".to_string()));
+    println!("  {} -m native_h3 -d local-aria2-webui.masx200.ddns-ip.net,google.com", std::env::args().next().unwrap_or_else(|| "program".to_string()));
+    println!("  {} --mode all --domains local-aria2-webui.masx200.ddns-ip.net --ipv6 --output table", std::env::args().next().unwrap_or_else(|| "program".to_string()));
     println!("  {} --config config.json", std::env::args().next().unwrap_or_else(|| "program".to_string()));
     println!("");
     println!("测试模式说明:");

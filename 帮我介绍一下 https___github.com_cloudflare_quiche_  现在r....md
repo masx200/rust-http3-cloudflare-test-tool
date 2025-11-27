@@ -211,23 +211,23 @@ error_msg: Some(msg),\
 \#\[tokio::main\]\
 async fn main() {\
 // 模拟输入 JSON (这里你可以改为从文件读取或标准输入读取)\
-// 注意：speed.cloudflare.com 的 IPv6 需要真实可用\
+// 注意：local-aria2-webui.masx200.ddns-ip.net 的 IPv6 需要真实可用\
 let input_json \= r\#"\
 \[\
 {\
-"domain": "speed.cloudflare.com",\
+"domain": "local-aria2-webui.masx200.ddns-ip.net",\
 "ip": "2606:4700:7::da",\
 "port": 443,\
 "alpn": "h3"\
 },\
 {\
-"domain": "speed.cloudflare.com",\
+"domain": "local-aria2-webui.masx200.ddns-ip.net",\
 "ip": "162.159.140.220",\
 "port": 443,\
 "alpn": "h2"\
 },\
 {\
-"domain": "speed.cloudflare.com",\
+"domain": "local-aria2-webui.masx200.ddns-ip.net",\
 "ip": "1.1.1.1",\
 "port": 443,\
 "alpn": "h3"\
@@ -267,7 +267,7 @@ let input_json \= r\#"\
    头后才升级。但因为你要直接测试连通性，我们假设服务器支持，直接强制使用 HTTP/3
    握手。
 2. **resolve_to_addrs**: 这完全对应了 curl 的 \--resolve 参数。它绕过了本地 DNS
-   解析，直接向你指定的 IP 发送 SNI 为 speed.cloudflare.com 的握手包。
+   解析，直接向你指定的 IP 发送 SNI 为 local-aria2-webui.masx200.ddns-ip.net 的握手包。
 3. **结果验证**: 输出中的 protocol_version
    字段会告诉你实际使用了什么协议。如果输出是 h3，说明 UDP 连通且 QUIC
    握手成功；如果是 h2 或 HTTP/1.1，说明 H3 失败降级了。
@@ -285,7 +285,7 @@ JSON
 
 \[\
 {\
-"domain": "speed.cloudflare.com",\
+"domain": "local-aria2-webui.masx200.ddns-ip.net",\
 "target_ip": "2606:4700:7::da",\
 "success": true,\
 "status_code": 200,\
@@ -294,14 +294,14 @@ JSON
 "error_msg": null\
 },\
 {\
-"domain": "speed.cloudflare.com",\
+"domain": "local-aria2-webui.masx200.ddns-ip.net",\
 "target_ip": "1.1.1.1",\
 "success": false,\
 "status_code": null,\
 "protocol_version": "None",\
 "latency_ms": null,\
 "error_msg": "Request Error: error sending request for url
-(https://speed.cloudflare.com:443/meta)"\
+(https://local-aria2-webui.masx200.ddns-ip.net:443/meta)"\
 }\
 \]
 

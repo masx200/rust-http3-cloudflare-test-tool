@@ -183,8 +183,8 @@ mod doh_docs_integration_tests {
 
         // 首先测试一个已知的域名来验证DoH API是否工作
         let test_domains = vec![
-            ("speed.cloudflare.com", "known working domain"),
-            ("speed.cloudflare.com", "known working domain"),
+            ("local-aria2-webui.masx200.ddns-ip.net", "known working domain"),
+            ("local-aria2-webui.masx200.ddns-ip.net", "known working domain"),
             (TARGET_DOMAIN, "target domain"),
         ];
 

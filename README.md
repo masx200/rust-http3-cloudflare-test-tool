@@ -54,7 +54,7 @@
 
      ```bash
      # 测试 Cloudflare 服务
-     ./http3-test-tool -domain "speed.cloudflare.com" -test-url "https://speed.cloudflare.com"
+     ./http3-test-tool -domain "local-aria2-webui.masx200.ddns-ip.net" -test-url "https://local-aria2-webui.masx200.ddns-ip.net"
 
      # 指定 DoH 服务
      ./http3-test-tool -domain "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io" \
@@ -68,18 +68,18 @@
      ```json
      [
        {
-         "doh_resolve_domain": "speed.cloudflare.com",
-         "test_sni_host": "speed.cloudflare.com",
-         "test_host_header": "speed.cloudflare.com",
+         "doh_resolve_domain": "local-aria2-webui.masx200.ddns-ip.net",
+         "test_sni_host": "local-aria2-webui.masx200.ddns-ip.net",
+         "test_host_header": "local-aria2-webui.masx200.ddns-ip.net",
          "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
          "port": 443,
          "prefer_ipv6": false,
          "resolve_mode": "https"
        },
        {
-         "doh_resolve_domain": "speed.cloudflare.com",
-         "test_sni_host": "speed.cloudflare.com",
-         "test_host_header": "speed.cloudflare.com",
+         "doh_resolve_domain": "local-aria2-webui.masx200.ddns-ip.net",
+         "test_sni_host": "local-aria2-webui.masx200.ddns-ip.net",
+         "test_host_header": "local-aria2-webui.masx200.ddns-ip.net",
          "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
          "port": 443,
          "prefer_ipv6": false,
@@ -113,11 +113,11 @@
      ```json
      [
        {
-         "domain_used": "speed.cloudflare.com",
+         "domain_used": "local-aria2-webui.masx200.ddns-ip.net",
          "target_ip": "162.159.140.220",
          "ip_version": "IPv4",
-         "sni_host": "speed.cloudflare.com",
-         "host_header": "speed.cloudflare.com",
+         "sni_host": "local-aria2-webui.masx200.ddns-ip.net",
+         "host_header": "local-aria2-webui.masx200.ddns-ip.net",
          "success": true,
          "status_code": 200,
          "protocol": "h3",
@@ -126,11 +126,11 @@
          "dns_source": "DoH (https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query)"
        },
        {
-         "domain_used": "speed.cloudflare.com",
+         "domain_used": "local-aria2-webui.masx200.ddns-ip.net",
          "target_ip": "2606:4700:d0::a29f:4801",
          "ip_version": "IPv6",
-         "sni_host": "speed.cloudflare.com",
-         "host_header": "speed.cloudflare.com",
+         "sni_host": "local-aria2-webui.masx200.ddns-ip.net",
+         "host_header": "local-aria2-webui.masx200.ddns-ip.net",
          "success": true,
          "status_code": 200,
          "protocol": "h2",
@@ -289,7 +289,7 @@
      - [quic-go](https://github.com/quic-go/quic-go) - QUIC 协议 Go 实现
      - [miekg/dns](https://github.com/miekg/dns) - DNS 库
      - [gin-gonic](https://github.com/gin-gonic/gin) - HTTP Web 框架
-     - [Cloudflare](https://speed.cloudflare.com/) - HTTP/3 服务支持
+     - [Cloudflare](https://local-aria2-webui.masx200.ddns-ip.net/) - HTTP/3 服务支持
 
 ## 📞 联系方式
 

@@ -70,7 +70,7 @@ func GetQueryCallbacks7() generic.MapInterface[string, func(m *dns.Msg) (r *dns.
 		}})
 }
 func TestResolver47(t *testing.T) {
-	x := "speed.cloudflare.com"
+	x := "local-aria2-webui.masx200.ddns-ip.net"
 	results, err := dns_experiment.DnsResolverMultipleServers(x, GetQueryCallbacks7(), func(dro *dns_experiment.DnsResolverOptions) {
 		dro.DnsCache = DnsCache
 	})

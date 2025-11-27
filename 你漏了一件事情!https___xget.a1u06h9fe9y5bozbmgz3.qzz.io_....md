@@ -213,21 +213,21 @@ let dns_client \= Client::builder().build().unwrap();
     let input\_json \= r\#"
     \[
         {
-            "domain": "speed.cloudflare.com",
+            "domain": "local-aria2-webui.masx200.ddns-ip.net",
             "ip": null,
             "ip\_version": "ipv4",
             "port": 443,
             "alpn": "h3"
         },
         {
-            "domain": "speed.cloudflare.com",
+            "domain": "local-aria2-webui.masx200.ddns-ip.net",
             "ip": null,
             "ip\_version": "ipv6",
             "port": 443,
             "alpn": "h3"
         },
         {
-            "domain": "speed.cloudflare.com",
+            "domain": "local-aria2-webui.masx200.ddns-ip.net",
             "ip": "162.159.140.220",
             "ip\_version": "ipv4",
             "port": 443,
@@ -328,7 +328,7 @@ JSON
 
 \[\
 {\
-"domain": "speed.cloudflare.com",\
+"domain": "local-aria2-webui.masx200.ddns-ip.net",\
 "resolved_ip": "162.159.138.218",\
 "port": 443,\
 "success": true,\
@@ -339,7 +339,7 @@ JSON
 "error_msg": null\
 },\
 {\
-"domain": "speed.cloudflare.com",\
+"domain": "local-aria2-webui.masx200.ddns-ip.net",\
 "resolved_ip": "2606:4700:7::da",\
 "port": 443,\
 "success": true,\
