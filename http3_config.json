@@ -1,7 +1,7 @@
 {
   "test_mode": "all",
   "target_domains": [
-    "cloudflare.com",
+    "speed.cloudflare.com",
     "google.com",
     "facebook.com",
     "twitter.com",
@@ -23,10 +23,10 @@
   "max_field_section_size": 8192,
   "custom_configs": [
     {
-      "target_domain": "http3-demo.cloudflare.com",
+      "target_domain": "http3-demo.speed.cloudflare.com",
       "target_ip": "auto",
       "port": 443,
-      "sni_host": "http3-demo.cloudflare.com",
+      "sni_host": "http3-demo.speed.cloudflare.com",
       "test_path": "/",
       "user_agent": "rust-http3-test-tool/1.0",
       "max_field_section_size": 8192,

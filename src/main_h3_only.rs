@@ -28,7 +28,7 @@ pub struct H3TestConfig {
 impl Default for H3TestConfig {
     fn default() -> Self {
         Self {
-            domain: "cloudflare.com".to_string(),
+            domain: "speed.cloudflare.com".to_string(),
             port: 443,
             path: "/".to_string(),
             doh_server: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query".to_string(),
@@ -185,7 +185,7 @@ pub async fn run() -> Result<()> {
                 .long("domain")
                 .value_name("DOMAIN")
                 .help("测试域名")
-                .default_value("cloudflare.com"),
+                .default_value("speed.cloudflare.com"),
         )
         .arg(
             Arg::new("port")

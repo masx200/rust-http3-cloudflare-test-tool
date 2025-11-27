@@ -260,7 +260,7 @@ async fn resolve_domain_with_rfc8484(client: &Client, task: &InputTask) -> Resul
         }
     }
 
-    if ips.is_empty() && task.doh_resolve_domain.contains("cloudflare.com") {
+    if ips.is_empty() && task.doh_resolve_domain.contains("speed.cloudflare.com") {
         println!("    -> 使用備用的Cloudflare IP...");
         add_fallback_cloudflare_ips(&mut ips);
     }
@@ -404,18 +404,18 @@ async fn main() -> Result<()> {
     let input_json = r#"
     [
         {
-            "doh_resolve_domain": "cloudflare.com",
-            "test_sni_host": "cloudflare.com",
-            "test_host_header": "cloudflare.com",
+            "doh_resolve_domain": "speed.cloudflare.com",
+            "test_sni_host": "speed.cloudflare.com",
+            "test_host_header": "speed.cloudflare.com",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": true,
             "resolve_mode": "https"
         },
         {
-            "doh_resolve_domain": "dash.cloudflare.com",
-            "test_sni_host": "dash.cloudflare.com",
-            "test_host_header": "dash.cloudflare.com",
+            "doh_resolve_domain": "speed.cloudflare.com",
+            "test_sni_host": "speed.cloudflare.com",
+            "test_host_header": "speed.cloudflare.com",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,

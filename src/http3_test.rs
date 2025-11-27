@@ -264,7 +264,7 @@ pub async fn resolve_domain_with_rfc8484(client: &Client, task: &InputTask) -> R
         }
     }
 
-    if ips.is_empty() && task.doh_resolve_domain.contains("cloudflare.com") {
+    if ips.is_empty() && task.doh_resolve_domain.contains("speed.cloudflare.com") {
         println!("    -> 使用備用的Cloudflare IP...");
         add_fallback_cloudflare_ips(&mut ips);
     }
@@ -315,8 +315,13 @@ async fn test_http3_connectivity(task: &InputTask, ip: IpAddr, dns_source: Strin
     {
         Ok(c) => c,
         Err(e) => {
-            return TestResult::fail(task, &ip.to_string(), ip_ver,
-                format!("Failed to create HTTP client: {}", e), dns_source);
+            return TestResult::fail(
+                task,
+                &ip.to_string(),
+                ip_ver,
+                format!("Failed to create HTTP client: {}", e),
+                dns_source,
+            );
         }
     };
 
@@ -358,7 +363,10 @@ async fn test_http3_connectivity(task: &InputTask, ip: IpAddr, dns_source: Strin
             let _h3_indicators = vec![
                 ("alt-svc", res.headers().get("alt-svc").is_some()),
                 ("h3", res.headers().get("h3").is_some()),
-                ("x-http3-connection", res.headers().get("x-http3-connection").is_some()),
+                (
+                    "x-http3-connection",
+                    res.headers().get("x-http3-connection").is_some(),
+                ),
             ];
 
             let response_size = match res.content_length() {
@@ -372,8 +380,13 @@ async fn test_http3_connectivity(task: &InputTask, ip: IpAddr, dns_source: Strin
                 }
             };
 
-            println!("    -> HTTP/3 响应: {} - {} - {} bytes - {}",
-                     status, protocol, response_size, server.as_deref().unwrap_or("Unknown"));
+            println!(
+                "    -> HTTP/3 响应: {} - {} - {} bytes - {}",
+                status,
+                protocol,
+                response_size,
+                server.as_deref().unwrap_or("Unknown")
+            );
 
             TestResult {
                 domain_used: task.doh_resolve_domain.clone(),
@@ -392,10 +405,13 @@ async fn test_http3_connectivity(task: &InputTask, ip: IpAddr, dns_source: Strin
                 request_path: test_path.to_string(),
             }
         }
-        Err(e) => {
-            TestResult::fail(task, &ip.to_string(), ip_ver,
-                format!("HTTP request failed: {}", e), dns_source)
-        }
+        Err(e) => TestResult::fail(
+            task,
+            &ip.to_string(),
+            ip_ver,
+            format!("HTTP request failed: {}", e),
+            dns_source,
+        ),
     }
 }
 
@@ -435,9 +451,9 @@ async fn test_http3_network_requests() -> Result<()> {
     let input_json = r#"
     [
         {
-            "doh_resolve_domain": "cloudflare.com",
-            "test_sni_host": "cloudflare.com",
-            "test_host_header": "cloudflare.com",
+            "doh_resolve_domain": "speed.cloudflare.com",
+            "test_sni_host": "speed.cloudflare.com",
+            "test_host_header": "speed.cloudflare.com",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
@@ -445,9 +461,9 @@ async fn test_http3_network_requests() -> Result<()> {
             "test_path": "/cdn-cgi/trace"
         },
         {
-            "doh_resolve_domain": "dash.cloudflare.com",
-            "test_sni_host": "dash.cloudflare.com",
-            "test_host_header": "dash.cloudflare.com",
+            "doh_resolve_domain": "speed.cloudflare.com",
+            "test_sni_host": "speed.cloudflare.com",
+            "test_host_header": "speed.cloudflare.com",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
@@ -507,11 +523,13 @@ async fn test_http3_network_requests() -> Result<()> {
                     futures.push(tokio::spawn(async move {
                         match test_http3_connectivity(&task_clone, ip, dns_source).await {
                             Ok(result) => result,
-                            Err(e) => {
-                                TestResult::fail(&task_for_fail, &ip_str,
-                                                 ip_ver,
-                                                 format!("测试失败: {}", e), dns_source_for_fail)
-                            }
+                            Err(e) => TestResult::fail(
+                                &task_for_fail,
+                                &ip_str,
+                                ip_ver,
+                                format!("测试失败: {}", e),
+                                dns_source_for_fail,
+                            ),
                         }
                     }));
                 }
@@ -589,9 +607,7 @@ async fn test_http3_network_requests() -> Result<()> {
     }
 
     // 延遲統計
-    let latencies: Vec<u64> = results.iter()
-        .filter_map(|r| r.latency_ms)
-        .collect();
+    let latencies: Vec<u64> = results.iter().filter_map(|r| r.latency_ms).collect();
 
     if !latencies.is_empty() {
         let avg_latency = latencies.iter().sum::<u64>() as f64 / latencies.len() as f64;

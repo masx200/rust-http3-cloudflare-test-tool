@@ -294,7 +294,7 @@ pub fn generate_test_report(results: &[H3TestResult]) -> String {
 pub fn get_default_h3_test_configs() -> Vec<H3TestConfig> {
     vec![
         H3TestConfig {
-            target_domain: "cloudflare.com".to_string(),
+            target_domain: "speed.cloudflare.com".to_string(),
             target_ip: "104.16.123.64".to_string(),
             ip_version: "IPv4".to_string(),
             port: 443,

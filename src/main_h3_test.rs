@@ -52,10 +52,11 @@ impl Default for H3IntegrationTest {
     fn default() -> Self {
         Self {
             input_task: InputTask {
-                doh_resolve_domain: "cloudflare.com".to_string(),
-                test_sni_host: "cloudflare.com".to_string(),
-                test_host_header: "cloudflare.com".to_string(),
-                doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query".to_string(),
+                doh_resolve_domain: "speed.cloudflare.com".to_string(),
+                test_sni_host: "speed.cloudflare.com".to_string(),
+                test_host_header: "speed.cloudflare.com".to_string(),
+                doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query"
+                    .to_string(),
                 port: 443,
                 prefer_ipv6: Some(false),
                 resolve_mode: "https".to_string(),
@@ -91,7 +92,13 @@ pub struct H3IntegrationResult {
 }
 
 impl H3IntegrationResult {
-    pub fn success(task: &InputTask, ip: &str, version: &str, method: &str, dns_source: String) -> Self {
+    pub fn success(
+        task: &InputTask,
+        ip: &str,
+        version: &str,
+        method: &str,
+        dns_source: String,
+    ) -> Self {
         Self {
             input_task: task.clone(),
             target_ip: ip.to_string(),
@@ -111,7 +118,14 @@ impl H3IntegrationResult {
         }
     }
 
-    pub fn failure(task: &InputTask, ip: &str, version: &str, method: &str, dns_source: String, error: String) -> Self {
+    pub fn failure(
+        task: &InputTask,
+        ip: &str,
+        version: &str,
+        method: &str,
+        dns_source: String,
+        error: String,
+    ) -> Self {
         Self {
             input_task: task.clone(),
             target_ip: ip.to_string(),
@@ -148,7 +162,11 @@ pub async fn test_http3_with_fallback(
     // 首先尝试 HTTP/3
     match test_http3_negotiation(client, task, &ip, &url).await {
         Ok(result) => {
-            println!("    -> HTTP/3 成功: {} - {}ms", result.protocol_detected, result.latency_ms.unwrap_or(0));
+            println!(
+                "    -> HTTP/3 成功: {} - {}ms",
+                result.protocol_detected,
+                result.latency_ms.unwrap_or(0)
+            );
             Ok(result)
         }
         Err(e) => {
@@ -157,12 +175,23 @@ pub async fn test_http3_with_fallback(
             // 尝试 HTTP/2 回退
             match test_http2_fallback(client, task, &ip, &url).await {
                 Ok(result) => {
-                    println!("    -> HTTP/2 回退成功: {} - {}ms", result.protocol_detected, result.latency_ms.unwrap_or(0));
+                    println!(
+                        "    -> HTTP/2 回退成功: {} - {}ms",
+                        result.protocol_detected,
+                        result.latency_ms.unwrap_or(0)
+                    );
                     Ok(result)
                 }
                 Err(e2) => {
                     println!("    -> HTTP/2 回退失败: {}", e2);
-                    Ok(H3IntegrationResult::failure(task, &ip.to_string(), ip_ver, "reqwest", dns_source, format!("All protocols failed: HTTP/3({}), HTTP/2({})", e, e2)))
+                    Ok(H3IntegrationResult::failure(
+                        task,
+                        &ip.to_string(),
+                        ip_ver,
+                        "reqwest",
+                        dns_source,
+                        format!("All protocols failed: HTTP/3({}), HTTP/2({})", e, e2),
+                    ))
                 }
             }
         }
@@ -222,7 +251,10 @@ async fn test_http3_negotiation(
     let h3_indicators = vec![
         ("alt-svc", response.headers().get("alt-svc").is_some()),
         ("h3", response.headers().get("h3").is_some()),
-        ("x-http3-connection", response.headers().get("x-http3-connection").is_some()),
+        (
+            "x-http3-connection",
+            response.headers().get("x-http3-connection").is_some(),
+        ),
     ];
 
     println!("    -> HTTP/3 协商结果: {} - 延迟: {}ms", protocol, latency);
@@ -305,15 +337,14 @@ async fn test_http2_fallback(
 
     let response_size = match response.content_length() {
         Some(len) => len as usize,
-        None => {
-            match response.bytes().await {
-                Ok(bytes) => bytes.len(),
-                Err(_) => 0,
-            }
-        }
+        None => match response.bytes().await {
+            Ok(bytes) => bytes.len(),
+            Err(_) => 0,
+        },
     };
 
-    let mut result = H3IntegrationResult::success(task, &ip_str, ip_ver, "reqwest-fallback", dns_source);
+    let mut result =
+        H3IntegrationResult::success(task, &ip_str, ip_ver, "reqwest-fallback", dns_source);
     result.status_code = Some(status.as_u16());
     result.protocol_detected = "h2".to_string();
     result.latency_ms = Some(latency);
@@ -351,10 +382,11 @@ pub async fn run_http3_integration_tests() -> Result<()> {
     let test_configs = vec![
         H3IntegrationTest {
             input_task: InputTask {
-                doh_resolve_domain: "cloudflare.com".to_string(),
-                test_sni_host: "cloudflare.com".to_string(),
-                test_host_header: "cloudflare.com".to_string(),
-                doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query".to_string(),
+                doh_resolve_domain: "speed.cloudflare.com".to_string(),
+                test_sni_host: "speed.cloudflare.com".to_string(),
+                test_host_header: "speed.cloudflare.com".to_string(),
+                doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query"
+                    .to_string(),
                 port: 443,
                 prefer_ipv6: Some(false),
                 resolve_mode: "https".to_string(),
@@ -371,7 +403,8 @@ pub async fn run_http3_integration_tests() -> Result<()> {
                 doh_resolve_domain: "google.com".to_string(),
                 test_sni_host: "google.com".to_string(),
                 test_host_header: "google.com".to_string(),
-                doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query".to_string(),
+                doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query"
+                    .to_string(),
                 port: 443,
                 prefer_ipv6: Some(false),
                 resolve_mode: "https".to_string(),
@@ -389,7 +422,10 @@ pub async fn run_http3_integration_tests() -> Result<()> {
     let mut futures = Vec::new();
 
     for test_config in test_configs {
-        println!("\n>> 正在测试 {} (模式: {})...", test_config.input_task.doh_resolve_domain, test_config.input_task.resolve_mode);
+        println!(
+            "\n>> 正在测试 {} (模式: {})...",
+            test_config.input_task.doh_resolve_domain, test_config.input_task.resolve_mode
+        );
 
         match resolve_domain_with_rfc8484(&client, &test_config.input_task).await {
             Ok(ips) => {
@@ -415,12 +451,21 @@ pub async fn run_http3_integration_tests() -> Result<()> {
                     };
 
                     futures.push(tokio::spawn(async move {
-                        match test_http3_with_fallback(&client_clone, &task_clone, ip, dns_source).await {
+                        match test_http3_with_fallback(&client_clone, &task_clone, ip, dns_source)
+                            .await
+                        {
                             Ok(result) => result,
                             Err(e) => {
                                 let ip_str = ip.to_string();
                                 let ip_ver = if ip.is_ipv6() { "IPv6" } else { "IPv4" };
-                                H3IntegrationResult::failure(&task_clone, &ip_str, ip_ver, "reqwest", dns_source, format!("Test failed: {}", e))
+                                H3IntegrationResult::failure(
+                                    &task_clone,
+                                    &ip_str,
+                                    ip_ver,
+                                    "reqwest",
+                                    dns_source,
+                                    format!("Test failed: {}", e),
+                                )
                             }
                         }
                     }));
@@ -486,7 +531,9 @@ pub async fn run_http3_integration_tests() -> Result<()> {
     let mut protocol_count: HashMap<String, usize> = HashMap::new();
     for result in &all_results {
         if result.success {
-            *protocol_count.entry(result.protocol_detected.clone()).or_insert(0) += 1;
+            *protocol_count
+                .entry(result.protocol_detected.clone())
+                .or_insert(0) += 1;
         }
     }
 
@@ -496,9 +543,7 @@ pub async fn run_http3_integration_tests() -> Result<()> {
     }
 
     // 延迟统计
-    let latencies: Vec<u64> = all_results.iter()
-        .filter_map(|r| r.latency_ms)
-        .collect();
+    let latencies: Vec<u64> = all_results.iter().filter_map(|r| r.latency_ms).collect();
 
     if !latencies.is_empty() {
         let avg_latency = latencies.iter().sum::<u64>() as f64 / latencies.len() as f64;
@@ -541,10 +586,11 @@ pub fn get_default_integration_test_configs() -> Vec<H3IntegrationTest> {
     vec![
         H3IntegrationTest {
             input_task: InputTask {
-                doh_resolve_domain: "cloudflare.com".to_string(),
-                test_sni_host: "cloudflare.com".to_string(),
-                test_host_header: "cloudflare.com".to_string(),
-                doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query".to_string(),
+                doh_resolve_domain: "speed.cloudflare.com".to_string(),
+                test_sni_host: "speed.cloudflare.com".to_string(),
+                test_host_header: "speed.cloudflare.com".to_string(),
+                doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query"
+                    .to_string(),
                 port: 443,
                 prefer_ipv6: Some(false),
                 resolve_mode: "https".to_string(),
@@ -558,10 +604,11 @@ pub fn get_default_integration_test_configs() -> Vec<H3IntegrationTest> {
         },
         H3IntegrationTest {
             input_task: InputTask {
-                doh_resolve_domain: "dash.cloudflare.com".to_string(),
-                test_sni_host: "dash.cloudflare.com".to_string(),
-                test_host_header: "dash.cloudflare.com".to_string(),
-                doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query".to_string(),
+                doh_resolve_domain: "speed.cloudflare.com".to_string(),
+                test_sni_host: "speed.cloudflare.com".to_string(),
+                test_host_header: "speed.cloudflare.com".to_string(),
+                doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query"
+                    .to_string(),
                 port: 443,
                 prefer_ipv6: Some(false),
                 resolve_mode: "https".to_string(),
@@ -578,7 +625,8 @@ pub fn get_default_integration_test_configs() -> Vec<H3IntegrationTest> {
                 doh_resolve_domain: "www.google.com".to_string(),
                 test_sni_host: "www.google.com".to_string(),
                 test_host_header: "www.google.com".to_string(),
-                doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query".to_string(),
+                doh_url: "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query"
+                    .to_string(),
                 port: 443,
                 prefer_ipv6: Some(false),
                 resolve_mode: "https".to_string(),

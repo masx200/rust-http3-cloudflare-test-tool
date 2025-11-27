@@ -12,21 +12,21 @@ cargo build --release
 
 ### 基本用法
 ```bash
-# 测试默认域名 (cloudflare.com)
+# 测试默认域名 (speed.cloudflare.com)
 cargo run
 
 # 测试指定域名
 cargo run -- --domain example.com
 
 # 测试指定路径
-cargo run -- --domain cloudflare.com --path "/cdn-cgi/trace"
+cargo run -- --domain speed.cloudflare.com --path "/cdn-cgi/trace"
 
 # 查看帮助
 cargo run -- --help
 ```
 
 ### 参数说明
-- `-d, --domain <DOMAIN>`: 测试域名 (默认: cloudflare.com)
+- `-d, --domain <DOMAIN>`: 测试域名 (默认: speed.cloudflare.com)
 - `-p, --port <PORT>`: 端口号 (默认: 443)
 - `-t, --path <PATH>`: 请求路径 (默认: /)
 - `--timeout <SECONDS>`: 超时时间 (默认: 10 秒)
@@ -37,7 +37,7 @@ cargo run -- --help
 
 #### 1. 测试 Cloudflare HTTP/3 支持
 ```bash
-cargo run -- --domain cloudflare.com --path "/cdn-cgi/trace"
+cargo run -- --domain speed.cloudflare.com --path "/cdn-cgi/trace"
 ```
 
 #### 2. 测试其他支持 HTTP/3 的网站
@@ -48,17 +48,17 @@ cargo run -- --domain facebook.com
 
 #### 3. 设置环境变量查看详细日志
 ```bash
-RUST_LOG=info cargo run -- --domain cloudflare.com
+RUST_LOG=info cargo run -- --domain speed.cloudflare.com
 ```
 
 ## 输出示例
 
 成功运行的输出：
 ```
-🚀 开始 HTTP/3 测试: cloudflare.com:443
-✅ DNS 解析成功: cloudflare.com -> [2606:4700::6810:85e5]:443
+🚀 开始 HTTP/3 测试: speed.cloudflare.com:443
+✅ DNS 解析成功: speed.cloudflare.com -> [2606:4700::6810:85e5]:443
 ✅ QUIC 连接建立成功，耗时: 1.4653407s
-📡 发送 HTTP/3 请求: https://cloudflare.com/
+📡 发送 HTTP/3 请求: https://speed.cloudflare.com/
 📨 收到响应: 301 Moved Permanently HTTP/3.0
 📋 响应头: { ... }
 ✅ HTTP/3 测试成功！状态码: 301 Moved Permanently, 响应大小: 167 字节

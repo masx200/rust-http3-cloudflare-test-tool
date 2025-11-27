@@ -289,7 +289,7 @@
      - [quic-go](https://github.com/quic-go/quic-go) - QUIC 协议 Go 实现
      - [miekg/dns](https://github.com/miekg/dns) - DNS 库
      - [gin-gonic](https://github.com/gin-gonic/gin) - HTTP Web 框架
-     - [Cloudflare](https://www.cloudflare.com/) - HTTP/3 服务支持
+     - [Cloudflare](https://www.speed.cloudflare.com/) - HTTP/3 服务支持
 
 ## 📞 联系方式
 

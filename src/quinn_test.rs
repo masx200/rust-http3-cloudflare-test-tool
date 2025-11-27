@@ -149,7 +149,10 @@ async fn query_dns_over_https(
     Ok(ip_addresses)
 }
 
-async fn resolve_domain_with_rfc8484(client: &reqwest::Client, task: &InputTask) -> Result<Vec<IpAddr>> {
+async fn resolve_domain_with_rfc8484(
+    client: &reqwest::Client,
+    task: &InputTask,
+) -> Result<Vec<IpAddr>> {
     let mut ips = HashSet::new();
 
     if let Some(direct_ips) = &task.direct_ips {
@@ -263,7 +266,7 @@ async fn resolve_domain_with_rfc8484(client: &reqwest::Client, task: &InputTask)
         }
     }
 
-    if ips.is_empty() && task.doh_resolve_domain.contains("cloudflare.com") {
+    if ips.is_empty() && task.doh_resolve_domain.contains("speed.cloudflare.com") {
         println!("    -> 使用備用的Cloudflare IP...");
         add_fallback_cloudflare_ips(&mut ips);
     }
@@ -293,7 +296,11 @@ fn add_fallback_cloudflare_ips(ips: &mut HashSet<IpAddr>) {
 }
 
 // --- 4. QUIC 連接測試 ---
-async fn test_quic_connectivity(task: &InputTask, ip: IpAddr, dns_source: String) -> Result<TestResult> {
+async fn test_quic_connectivity(
+    task: &InputTask,
+    ip: IpAddr,
+    dns_source: String,
+) -> Result<TestResult> {
     let socket_addr = SocketAddr::new(ip, task.port);
     let ip_ver = if ip.is_ipv6() { "IPv6" } else { "IPv4" };
 
@@ -317,8 +324,12 @@ async fn test_quic_connectivity(task: &InputTask, ip: IpAddr, dns_source: String
 
     // 连接到服务器
     let connection = match timeout(Duration::from_secs(10), async {
-        endpoint.connect_with(client_config, socket_addr, &task.test_sni_host).await
-    }).await {
+        endpoint
+            .connect_with(client_config, socket_addr, &task.test_sni_host)
+            .await
+    })
+    .await
+    {
         Ok(Ok(conn)) => conn,
         Ok(Err(e)) => {
             return Err(anyhow::anyhow!("连接失败: {}", e));
@@ -387,18 +398,18 @@ async fn test_http3_network_requests() -> Result<()> {
     let input_json = r#"
     [
         {
-            "doh_resolve_domain": "cloudflare.com",
-            "test_sni_host": "cloudflare.com",
-            "test_host_header": "cloudflare.com",
+            "doh_resolve_domain": "speed.cloudflare.com",
+            "test_sni_host": "speed.cloudflare.com",
+            "test_host_header": "speed.cloudflare.com",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": true,
             "resolve_mode": "https"
         },
         {
-            "doh_resolve_domain": "dash.cloudflare.com",
-            "test_sni_host": "dash.cloudflare.com",
-            "test_host_header": "dash.cloudflare.com",
+            "doh_resolve_domain": "speed.cloudflare.com",
+            "test_sni_host": "speed.cloudflare.com",
+            "test_host_header": "speed.cloudflare.com",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
@@ -441,17 +452,19 @@ async fn test_http3_network_requests() -> Result<()> {
                     };
 
                     let ip_str = ip.to_string();
-                  let ip_ver = if ip.is_ipv6() { "IPv6" } else { "IPv4" };
-                  let task_for_fail = task.clone();
-                  let dns_source_for_fail = dns_source.clone();
-                  futures.push(tokio::spawn(async move {
+                    let ip_ver = if ip.is_ipv6() { "IPv6" } else { "IPv4" };
+                    let task_for_fail = task.clone();
+                    let dns_source_for_fail = dns_source.clone();
+                    futures.push(tokio::spawn(async move {
                         match test_quic_connectivity(&task_clone, ip, dns_source).await {
                             Ok(result) => result,
-                            Err(e) => {
-                                TestResult::fail(&task_for_fail, &ip_str,
-                                                 ip_ver,
-                                                 format!("测试失败: {}", e), dns_source_for_fail)
-                            }
+                            Err(e) => TestResult::fail(
+                                &task_for_fail,
+                                &ip_str,
+                                ip_ver,
+                                format!("测试失败: {}", e),
+                                dns_source_for_fail,
+                            ),
                         }
                     }));
                 }

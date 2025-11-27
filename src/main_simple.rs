@@ -75,7 +75,7 @@ async fn resolve_domain_simple(client: &Client, task: &InputTask) -> Result<Vec<
     }
 
     // 如果A记录查询失败，尝试一些知名的Cloudflare IP作为备用
-    if ips.is_empty() && task.doh_resolve_domain.contains("cloudflare.com") {
+    if ips.is_empty() && task.doh_resolve_domain.contains("speed.cloudflare.com") {
         println!("    -> 使用备用的Cloudflare IP...");
         // 添加一些已知的Cloudflare IP
         if let Ok(ip1) = IpAddr::from_str("162.159.140.220") {

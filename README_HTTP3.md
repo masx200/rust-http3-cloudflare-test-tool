@@ -36,7 +36,7 @@ cargo run --bin rust-http3-cloudflare-test-tool
 ./rust-http3-cloudflare-test-tool --mode native_h3
 
 # 测试特定域名
-./rust-http3-cloudflare-test-tool --domains cloudflare.com,google.com
+./rust-http3-cloudflare-test-tool --domains speed.cloudflare.com,google.com
 
 # 启用 IPv6 测试
 ./rust-http3-cloudflare-test-tool --ipv6
@@ -64,7 +64,7 @@ cargo run --bin rust-http3-cloudflare-test-tool
 
 ```bash
 # 原生 HTTP/3 测试
-./rust-http3-cloudflare-test-tool --mode native_h3 --domains cloudflare.com
+./rust-http3-cloudflare-test-tool --mode native_h3 --domains speed.cloudflare.com
 ```
 
 ### 2. 集成测试 (`integration` / `reqwest_h3`)
@@ -86,7 +86,7 @@ cargo run --bin rust-http3-cloudflare-test-tool
 
 ```bash
 # 运行所有测试模式
-./rust-http3-cloudflare-test-tool --mode all --domains cloudflare.com,google.com
+./rust-http3-cloudflare-test-tool --mode all --domains speed.cloudflare.com,google.com
 ```
 
 ## 命令行选项
@@ -94,7 +94,7 @@ cargo run --bin rust-http3-cloudflare-test-tool
 | 选项 | 短选项 | 默认值 | 说明 |
 |------|--------|--------|------|
 | `--mode` | `-m` | `all` | 测试模式：`native_h3`、`reqwest_h3`、`integration`、`all` |
-| `--domains` | `-d` | `cloudflare.com,google.com,facebook.com` | 目标域名（逗号分隔） |
+| `--domains` | `-d` | `speed.cloudflare.com,google.com,facebook.com` | 目标域名（逗号分隔） |
 | `--output` | `-o` | `all` | 输出格式：`json`、`table`、`all` |
 | `--timeout` | `-t` | `30` | 请求超时时间（秒） |
 | `--config` | `-c` | - | 配置文件路径（JSON 格式） |
@@ -112,7 +112,7 @@ cargo run --bin rust-http3-cloudflare-test-tool
 
 ```bash
 # 使用 DoH
-./rust-http3-cloudflare-test-tool --resolve-mode https --domains cloudflare.com
+./rust-http3-cloudflare-test-tool --resolve-mode https --domains speed.cloudflare.com
 ```
 
 ### 2. 传统 DNS (`a_aaaa`)
@@ -143,7 +143,7 @@ cargo run --bin rust-http3-cloudflare-test-tool
 [
   {
     "test_mode": "native_h3",
-    "target_domain": "cloudflare.com",
+    "target_domain": "speed.cloudflare.com",
     "target_ip": "104.16.123.64",
     "ip_version": "IPv4",
     "test_path": "/cdn-cgi/trace",
@@ -168,7 +168,7 @@ cargo run --bin rust-http3-cloudflare-test-tool
 ```
 域名                 IP地址           版本      协议          状态     延迟    大小    ALPN     测试方法   错误
 ========================================================================================================================================================
-cloudflare.com       104.16.123.64   IPv4     HTTP/3         成功     245ms    1024B    h3       native_h3
+speed.cloudflare.com       104.16.123.64   IPv4     HTTP/3         成功     245ms    1024B    h3       native_h3
 google.com           142.250.196.206 IPv4     HTTP/3         成功     189ms    2048B    h3       native_h3
 ```
 
@@ -185,7 +185,7 @@ google.com           142.250.196.206 IPv4     HTTP/3         成功     189ms   
 成功率: 80.00%
 
 📡 按域名统计:
-  cloudflare.com: 4/4 (100.00% 成功)
+  speed.cloudflare.com: 4/4 (100.00% 成功)
   google.com: 4/5 (80.00% 成功)
   facebook.com: 4/6 (66.67% 成功)
 
@@ -215,7 +215,7 @@ google.com           142.250.196.206 IPv4     HTTP/3         成功     189ms   
 ```json
 {
   "test_mode": "all",
-  "target_domains": ["cloudflare.com", "google.com"],
+  "target_domains": ["speed.cloudflare.com", "google.com"],
   "output_format": "all",
   "max_concurrent_tests": 10,
   "timeout_seconds": 30,
