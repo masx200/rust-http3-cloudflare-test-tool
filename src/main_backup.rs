@@ -8,7 +8,7 @@ use std::time::Instant;
 
 // 引入 trust-dns 协议相关模块用于 RFC 8484 二进制 DNS 消息
 use trust_dns_resolver::proto::op::{Message, Query};
-use trust_dns_resolver::proto::rr::{RecordType, Name, RData};
+use trust_dns_resolver::proto::rr::{Name, RData, RecordType};
 
 // --- 1. 输入配置 ---
 // CLAUDE.md: "程序接受JSON格式的配置"
@@ -67,7 +67,10 @@ struct TestResult {
 
 // --- Helper: 提取 A/AAAA 记录的 IP ---
 // 提取 A/AAAA 记录 IP 的公共逻辑，可用于 answers, authorities, additionals 三个部分。
-fn extract_a_aaaa_ips(records: &[trust_dns_resolver::proto::rr::Record], ips: &mut HashSet<IpAddr>) {
+fn extract_a_aaaa_ips(
+    records: &[trust_dns_resolver::proto::rr::Record],
+    ips: &mut HashSet<IpAddr>,
+) {
     for record in records {
         // rdata.ip_addr() 是 trust-dns 中用于 A/AAAA 记录的便捷方法
         if let Some(ip) = record.data().and_then(|rdata| rdata.ip_addr()) {
@@ -156,7 +159,7 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
                     }
                 }
             }
-        },
+        }
         Err(e) => eprintln!("    [X] HTTPS记录解析失败: {:?}", e),
     }
 
@@ -337,7 +340,7 @@ async fn main() -> Result<()> {
             "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": null,
-            "direct_ips": ["104.16.123.96", "172.67.214.232"],
+            "direct_ips": ["162.159.140.220", "172.67.214.232"],
             "resolve_mode": "direct"
         }
     ]

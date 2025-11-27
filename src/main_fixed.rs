@@ -8,7 +8,7 @@ use std::time::Instant;
 
 // 引入 trust-dns 协议相关模块用于 RFC 8484 二进制 DNS 消息
 use trust_dns_resolver::proto::op::{Message, Query};
-use trust_dns_resolver::proto::rr::{RecordType, Name, RData};
+use trust_dns_resolver::proto::rr::{Name, RData, RecordType};
 
 // --- 1. 输入配置 ---
 // CLAUDE.md: "程序接受JSON格式的配置"
@@ -34,7 +34,7 @@ struct TestResult {
     host_header: String, // 实际使用的 Host header
     success: bool,
     status_code: Option<u16>,
-    protocol: String,    // 实际协商的协议 (h3, h2, http/1.1)
+    protocol: String, // 实际协商的协议 (h3, h2, http/1.1)
     latency_ms: Option<u64>,
     server_header: Option<String>,
     error_msg: Option<String>,
@@ -90,7 +90,10 @@ async fn doh_query_manual(
 }
 
 // --- Helper: 提取 A/AAAA 记录的 IP ---
-fn extract_a_aaaa_ips(records: &[trust_dns_resolver::proto::rr::Record], ips: &mut HashSet<IpAddr>) {
+fn extract_a_aaaa_ips(
+    records: &[trust_dns_resolver::proto::rr::Record],
+    ips: &mut HashSet<IpAddr>,
+) {
     for record in records {
         // rdata.ip_addr() 是 trust-dns 中用于 A/AAAA 记录的便捷方法
         if let Some(ip) = record.data().and_then(|rdata| rdata.ip_addr()) {
@@ -109,7 +112,7 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
             extract_a_aaaa_ips(response.answers(), &mut ips);
             extract_a_aaaa_ips(response.authorities(), &mut ips);
             extract_a_aaaa_ips(response.additionals(), &mut ips);
-        },
+        }
         Err(e) => eprintln!("    [X] A记录解析失败: {:?}", e),
     }
 
@@ -119,7 +122,7 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
             extract_a_aaaa_ips(response.answers(), &mut ips);
             extract_a_aaaa_ips(response.authorities(), &mut ips);
             extract_a_aaaa_ips(response.additionals(), &mut ips);
-        },
+        }
         Err(e) => eprintln!("    [X] AAAA记录解析失败: {:?}", e),
     }
 
@@ -280,7 +283,7 @@ async fn main() -> Result<()> {
             "doh_url": "https://1.1.1.1.1",
             "port": 443,
             "prefer_ipv6": null,
-            "direct_ips": ["104.16.123.96", "172.67.214.232"],
+            "direct_ips": ["162.159.140.220", "172.67.214.232"],
             "resolve_mode": "direct"
         }
     ]
@@ -351,7 +354,8 @@ async fn main() -> Result<()> {
 
                             let task_clone = task.clone();
                             futures.push(tokio::spawn(async move {
-                                test_connectivity(task_clone, ip, "HTTPS DoH (Binary)".to_string()).await
+                                test_connectivity(task_clone, ip, "HTTPS DoH (Binary)".to_string())
+                                    .await
                             }));
                         }
                     }
@@ -376,16 +380,13 @@ async fn main() -> Result<()> {
                             println!("    [!] 未找到IP地址");
                             continue;
                         }
-                        println!(
-                            "    -> 解析成功，获取到 {} 个IP地址: {:?}",
-                            ips.len(),
-                            ips
-                        );
+                        println!("    -> 解析成功，获取到 {} 个IP地址: {:?}", ips.len(), ips);
 
                         for ip in ips {
                             let task_clone = task.clone();
                             futures.push(tokio::spawn(async move {
-                                test_connectivity(task_clone, ip, "A/AAAA DoH (Binary)".to_string()).await
+                                test_connectivity(task_clone, ip, "A/AAAA DoH (Binary)".to_string())
+                                    .await
                             }));
                         }
                     }

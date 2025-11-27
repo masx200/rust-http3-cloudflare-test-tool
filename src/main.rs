@@ -1,13 +1,13 @@
 // Simplified version - focuses on basic DNS resolution and HTTP connection testing
 // Now using local Hickory-DNS and Reqwest libraries
 use anyhow::{Context, Result};
+use hickory_resolver::{Name, Resolver};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::time::Instant;
-use hickory_resolver::{Resolver, Name};
 
 // --- 1. 输入配置 ---
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -56,7 +56,10 @@ async fn resolve_domain_with_hickory(client: &Client, task: &InputTask) -> Resul
     match task.resolve_mode.as_str() {
         "https" => {
             // 使用Hickory-DNS进行DoH查询
-            println!("    -> 使用Hickory-DNS进行DoH查询: {}", task.doh_resolve_domain);
+            println!(
+                "    -> 使用Hickory-DNS进行DoH查询: {}",
+                task.doh_resolve_domain
+            );
 
             // 创建解析器配置
             let resolver = Resolver::builder_tokio()?
@@ -127,7 +130,11 @@ async fn resolve_domain_with_hickory(client: &Client, task: &InputTask) -> Resul
 }
 
 // 回退到JSON API（兼容性）
-async fn fallback_to_json_api(client: &Client, task: &InputTask, ips: &mut HashSet<IpAddr>) -> Result<()> {
+async fn fallback_to_json_api(
+    client: &Client,
+    task: &InputTask,
+    ips: &mut HashSet<IpAddr>,
+) -> Result<()> {
     println!("    -> 回退到JSON API查询");
     let doh_api_url = format!("{}?name={}&type=A", task.doh_url, task.doh_resolve_domain);
 
@@ -156,8 +163,10 @@ async fn fallback_to_json_api(client: &Client, task: &InputTask, ips: &mut HashS
 // 添加备用Cloudflare IP
 fn add_fallback_cloudflare_ips(ips: &mut HashSet<IpAddr>) {
     let fallback_ips = [
-        "104.16.123.96", "104.16.123.64",
-        "172.67.214.232", "2606:4700:4700::1"
+        "162.159.140.220",
+        "104.16.123.64",
+        "172.67.214.232",
+        "2606:4700:4700::1",
     ];
 
     for ip_str in &fallback_ips {
@@ -283,7 +292,7 @@ async fn main() -> Result<()> {
             "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
-            "direct_ips": ["104.16.123.96", "172.67.214.232"],
+            "direct_ips": ["162.159.140.220", "172.67.214.232"],
             "resolve_mode": "direct"
         }
     ]

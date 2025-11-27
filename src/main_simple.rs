@@ -78,7 +78,7 @@ async fn resolve_domain_simple(client: &Client, task: &InputTask) -> Result<Vec<
     if ips.is_empty() && task.doh_resolve_domain.contains("cloudflare.com") {
         println!("    -> 使用备用的Cloudflare IP...");
         // 添加一些已知的Cloudflare IP
-        if let Ok(ip1) = IpAddr::from_str("104.16.123.96") {
+        if let Ok(ip1) = IpAddr::from_str("162.159.140.220") {
             ips.insert(ip1);
         }
         if let Ok(ip2) = IpAddr::from_str("172.67.214.232") {
@@ -208,7 +208,7 @@ async fn main() -> Result<()> {
             "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
-            "direct_ips": ["104.16.123.96", "172.67.214.232"],
+            "direct_ips": ["162.159.140.220", "172.67.214.232"],
             "resolve_mode": "direct"
         }
     ]

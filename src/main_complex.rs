@@ -9,7 +9,7 @@ use std::time::Instant;
 
 // 引入 trust-dns 协议相关模块用于 RFC 8484 二进制 DNS 消息
 use trust_dns_resolver::proto::op::{Message, Query};
-use trust_dns_resolver::proto::rr::{RecordType, Name};
+use trust_dns_resolver::proto::rr::{Name, RecordType};
 
 // --- 1. 输入配置 ---
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -42,7 +42,10 @@ struct TestResult {
 }
 
 // --- Helper: 提取 A/AAAA 记录的 IP ---
-fn extract_a_aaaa_ips(records: &[trust_dns_resolver::proto::rr::Record], ips: &mut HashSet<IpAddr>) {
+fn extract_a_aaaa_ips(
+    records: &[trust_dns_resolver::proto::rr::Record],
+    ips: &mut HashSet<IpAddr>,
+) {
     for record in records {
         if let Some(ip) = record.data().and_then(|rdata| rdata.ip_addr()) {
             ips.insert(ip);
@@ -110,7 +113,10 @@ async fn resolve_a_aaaa_record(
     if let Ok(response) = doh_query_manual(client, doh_url, domain, RecordType::A).await {
         extract_a_aaaa_ips(response.answers(), &mut ips);
         if !ips.is_empty() {
-            println!("    -> 从A记录提取到 {} 个IPv4地址", ips.iter().filter(|ip| ip.is_ipv4()).count());
+            println!(
+                "    -> 从A记录提取到 {} 个IPv4地址",
+                ips.iter().filter(|ip| ip.is_ipv4()).count()
+            );
         }
     } else {
         println!("    -> A记录查询失败");
@@ -121,7 +127,10 @@ async fn resolve_a_aaaa_record(
         if let Ok(response) = doh_query_manual(client, doh_url, domain, RecordType::AAAA).await {
             extract_a_aaaa_ips(response.answers(), &mut ips);
             if !ips.is_empty() {
-                println!("    -> 从AAAA记录提取到 {} 个IPv6地址", ips.iter().filter(|ip| ip.is_ipv6()).count());
+                println!(
+                    "    -> 从AAAA记录提取到 {} 个IPv6地址",
+                    ips.iter().filter(|ip| ip.is_ipv6()).count()
+                );
             }
         } else {
             println!("    -> AAAA记录查询失败");
@@ -253,7 +262,7 @@ async fn main() -> Result<()> {
             "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/dns.adguard-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": null,
-            "direct_ips": ["104.16.123.96", "172.67.214.232"],
+            "direct_ips": ["162.159.140.220", "172.67.214.232"],
             "resolve_mode": "direct"
         }
     ]
@@ -294,7 +303,14 @@ async fn main() -> Result<()> {
 
         match task.resolve_mode.as_str() {
             "a_aaaa" => {
-                match resolve_a_aaaa_record(&dns_client, &task.doh_url, &task.doh_resolve_domain, task.prefer_ipv6.unwrap_or(false)).await {
+                match resolve_a_aaaa_record(
+                    &dns_client,
+                    &task.doh_url,
+                    &task.doh_resolve_domain,
+                    task.prefer_ipv6.unwrap_or(false),
+                )
+                .await
+                {
                     Ok(ips) => {
                         if ips.is_empty() {
                             println!("    [!] 未找到IP地址");
@@ -305,7 +321,8 @@ async fn main() -> Result<()> {
                         for ip in ips {
                             let task_clone = task.clone();
                             futures.push(tokio::spawn(async move {
-                                test_connectivity(task_clone, ip, "A/AAAA DoH (Binary)".to_string()).await
+                                test_connectivity(task_clone, ip, "A/AAAA DoH (Binary)".to_string())
+                                    .await
                             }));
                         }
                     }
