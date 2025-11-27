@@ -192,7 +192,7 @@ async fn main() -> Result<()> {
             "test_host_header": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
-            "prefer_ipv6": null,
+            "prefer_ipv6": true,
             "resolve_mode": "https"
         },
         {
@@ -201,7 +201,7 @@ async fn main() -> Result<()> {
             "test_host_header": "speed.cloudflare.com",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
-            "prefer_ipv6": false,
+            "prefer_ipv6": true,
             "resolve_mode": "https"
         },
         {
@@ -210,7 +210,7 @@ async fn main() -> Result<()> {
             "test_host_header": "speed.cloudflare.com",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
-            "prefer_ipv6": false,
+            "prefer_ipv6": true,
             "direct_ips": ["162.159.140.220", "172.67.214.232"],
             "resolve_mode": "direct"
         }

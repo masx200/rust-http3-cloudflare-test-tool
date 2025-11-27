@@ -96,8 +96,7 @@ async fn query_dns_over_https(
     // 序列化 DNS 查询
     let mut request_bytes = Vec::new();
     {
-        let mut encoder =
-            trust_dns_proto::serialize::binary::BinEncoder::new(&mut request_bytes);
+        let mut encoder = trust_dns_proto::serialize::binary::BinEncoder::new(&mut request_bytes);
         message
             .emit(&mut encoder)
             .context("Failed to serialize DNS query")?;
@@ -180,13 +179,17 @@ async fn resolve_domain_with_rfc8484(client: &Client, task: &InputTask) -> Resul
     match task.resolve_mode.as_str() {
         "https" => {
             // 使用 RFC 8484 标准的 DoH 查询
-            println!(
-                "    -> 使用 RFC 8484 DoH 查询: {}",
-                task.doh_resolve_domain
-            );
+            println!("    -> 使用 RFC 8484 DoH 查询: {}", task.doh_resolve_domain);
 
             // 查询 A 记录 (IPv4)
-            match query_dns_over_https(client, &task.doh_resolve_domain, RecordType::A, &task.doh_url).await {
+            match query_dns_over_https(
+                client,
+                &task.doh_resolve_domain,
+                RecordType::A,
+                &task.doh_url,
+            )
+            .await
+            {
                 Ok(mut ipv4_addresses) => {
                     ipv4_addresses.retain(|ip| {
                         let ip_str = ip.to_string();
@@ -199,7 +202,14 @@ async fn resolve_domain_with_rfc8484(client: &Client, task: &InputTask) -> Resul
                     }
 
                     // 查询 AAAA 记录 (IPv6)
-                    match query_dns_over_https(client, &task.doh_resolve_domain, RecordType::AAAA, &task.doh_url).await {
+                    match query_dns_over_https(
+                        client,
+                        &task.doh_resolve_domain,
+                        RecordType::AAAA,
+                        &task.doh_url,
+                    )
+                    .await
+                    {
                         Ok(ipv6_addresses) => {
                             for ip in &ipv6_addresses {
                                 ips.insert(*ip);
@@ -221,7 +231,14 @@ async fn resolve_domain_with_rfc8484(client: &Client, task: &InputTask) -> Resul
             println!("    -> 使用 DoH 查询: {}", task.doh_resolve_domain);
 
             // 查询 A 记录 (IPv4)
-            match query_dns_over_https(client, &task.doh_resolve_domain, RecordType::A, &task.doh_url).await {
+            match query_dns_over_https(
+                client,
+                &task.doh_resolve_domain,
+                RecordType::A,
+                &task.doh_url,
+            )
+            .await
+            {
                 Ok(mut ipv4_addresses) => {
                     ipv4_addresses.retain(|ip| {
                         let ip_str = ip.to_string();
@@ -239,7 +256,14 @@ async fn resolve_domain_with_rfc8484(client: &Client, task: &InputTask) -> Resul
             }
 
             // 查询 AAAA 记录 (IPv6)
-            match query_dns_over_https(client, &task.doh_resolve_domain, RecordType::AAAA, &task.doh_url).await {
+            match query_dns_over_https(
+                client,
+                &task.doh_resolve_domain,
+                RecordType::AAAA,
+                &task.doh_url,
+            )
+            .await
+            {
                 Ok(ipv6_addresses) => {
                     for ip in &ipv6_addresses {
                         ips.insert(*ip);
@@ -419,7 +443,7 @@ async fn main() -> Result<()> {
             "test_host_header": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
-            "prefer_ipv6": null,
+            "prefer_ipv6": true,
             "resolve_mode": "https"
         },
         {
@@ -428,7 +452,7 @@ async fn main() -> Result<()> {
             "test_host_header": "speed.cloudflare.com",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
-            "prefer_ipv6": false,
+            "prefer_ipv6": true,
             "resolve_mode": "https"
         },
         {
@@ -437,7 +461,7 @@ async fn main() -> Result<()> {
             "test_host_header": "speed.cloudflare.com",
             "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
-            "prefer_ipv6": false,
+            "prefer_ipv6": true,
             "direct_ips": ["162.159.140.220", "172.67.214.232"],
             "resolve_mode": "direct"
         }
