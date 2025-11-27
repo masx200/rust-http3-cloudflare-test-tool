@@ -1,13 +1,18 @@
 // 纯 HTTP/3 测试工具 - 基于 h3 库
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
+use bytes::Buf;
 use clap::{Arg, Command};
 use futures::future;
-use h3::error::{ConnectionError, StreamError};
+use h3::error::ConnectionError;
 use h3_quinn::quinn;
-use rustls::pki_types::CertificateDer;
 use rustls_native_certs::load_native_certs;
 use std::sync::Arc;
 use tracing::{error, info};
+
+// 错误转换辅助函数
+fn h3_error_to_anyhow(e: impl std::error::Error + Send + Sync + 'static) -> anyhow::Error {
+    anyhow!("{:?}", e)
+}
 
 static ALPN: &[u8] = b"h3";
 
@@ -45,7 +50,7 @@ impl H3Tester {
         info!("🚀 开始 HTTP/3 测试: {}:{}", self.config.domain, self.config.port);
 
         // 1. DNS 解析
-        let addrs = tokio::net::lookup_host((self.config.domain.as_str(), self.config.port))
+        let mut addrs = tokio::net::lookup_host((self.config.domain.as_str(), self.config.port))
             .await
             .context("DNS 解析失败")?;
 
@@ -109,7 +114,7 @@ impl H3Tester {
         };
 
         // 7. 发送请求
-        let request = async move {
+        let request_future = async {
             let uri = format!("https://{}{}", self.config.domain, self.config.path);
             info!("📡 发送 HTTP/3 请求: {}", uri);
 
@@ -118,13 +123,19 @@ impl H3Tester {
                 .header("Host", &self.config.domain)
                 .header("User-Agent", "rust-http3-test-tool/1.0")
                 .body(())
-                .context("构建请求失败")?;
+                .map_err(|e| anyhow!("构建请求失败: {}", e))?;
 
-            let mut stream = send_request.send_request(req).await.context("发送请求失败")?;
+            let mut stream = send_request.send_request(req)
+                .await
+                .map_err(h3_error_to_anyhow)?;
 
-            stream.finish().await.context("完成请求失败")?;
+            stream.finish()
+                .await
+                .map_err(h3_error_to_anyhow)?;
 
-            let resp = stream.recv_response().await.context("接收响应失败")?;
+            let resp = stream.recv_response()
+                .await
+                .map_err(h3_error_to_anyhow)?;
 
             let status = resp.status();
             let version = resp.version();
@@ -134,31 +145,27 @@ impl H3Tester {
 
             // 读取响应体
             let mut total_bytes = 0;
-            while let Some(chunk) = stream.recv_data().await? {
+            while let Some(chunk) = stream.recv_data().await.map_err(h3_error_to_anyhow)? {
                 total_bytes += chunk.remaining();
             }
 
             info!("✅ HTTP/3 测试成功！状态码: {}, 响应大小: {} 字节", status, total_bytes);
 
-            Ok::<_, StreamError>(())
+            Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
         };
 
-        let (req_res, drive_res) = tokio::join!(request, drive);
+        let (req_res, drive_res) = tokio::join!(request_future, drive);
 
         if let Err(err) = req_res {
-            if err.is_h3_no_error() {
-                info!("连接以 H3_NO_ERROR 关闭");
-            } else {
-                error!("请求失败: {:?}", err);
-                return Err(err.into());
-            }
+            error!("请求失败: {:?}", err);
+            return Err(anyhow!("请求失败: {:?}", err));
         }
         if let Err(err) = drive_res {
             if err.is_h3_no_error() {
                 info!("连接以 H3_NO_ERROR 关闭");
             } else {
                 error!("连接关闭错误: {:?}", err);
-                return Err(err.into());
+                return Err(anyhow!("连接关闭错误: {:?}", err));
             }
         }
 
@@ -169,8 +176,9 @@ impl H3Tester {
     }
 }
 
+// --- 主程序入口 ---
 #[tokio::main]
-pub async fn main() -> Result<()> {
+pub async fn run() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
