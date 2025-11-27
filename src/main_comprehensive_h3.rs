@@ -472,13 +472,12 @@ pub async fn run_comprehensive_h3_tests() -> Result<()> {
 
     // --- 8. 保存结果到文件 ---
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-        let filename = format!("http3_test_results_{}.json", timestamp);
-        if let Ok(json_output) = serde_json::to_string_pretty(&all_results) {
-            if let Err(e) = fs::write(&filename, json_output) {
-                eprintln!("保存结果文件失败: {}", e);
-            } else {
-                println!("\n📁 结果已保存到: {}", filename);
-            }
+    let filename = format!("http3_test_results_{}.json", timestamp);
+    if let Ok(json_output) = serde_json::to_string_pretty(&all_results) {
+        if let Err(e) = fs::write(&filename, json_output) {
+            eprintln!("保存结果文件失败: {}", e);
+        } else {
+            println!("\n📁 结果已保存到: {}", filename);
         }
     }
 
