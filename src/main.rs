@@ -63,7 +63,7 @@ async fn resolve_domain_with_hickory(client: &Client, task: &InputTask) -> Resul
 
             // 创建解析器配置，配置DoH服务器 (RFC 8484)
             // 解析DoH URL中的域名部分
-            let doh_url_obj = url::Url::parse(&task.doh_url)
+            let doh_url_obj = Url::parse(&task.doh_url)
                 .context("Failed to parse DoH URL")?;
             let doh_host = doh_url_obj.host_str()
                 .context("Failed to extract DoH host")?;
@@ -79,11 +79,17 @@ async fn resolve_domain_with_hickory(client: &Client, task: &InputTask) -> Resul
             let mut name_servers = Vec::new();
             for ip_str in doh_ips {
                 if let Ok(ip) = std::net::IpAddr::from_str(ip_str) {
-                    // 创建HTTPS DoH连接配置
-                    let name_server = hickory_resolver::config::NameServerConfig::https(
+                    // 创建HTTPS DoH连接配置，使用正确的API
+                    let connection_cfg = hickory_resolver::config::ConnectionConfig::new(
+                        hickory_resolver::proto::op::ServerTransport::Https,
+                        doh_url_obj.path().to_string(),
+                        vec![doh_host.to_string()],
+                    );
+
+                    let name_server = NameServerConfig::new(
                         ip,
-                        std::sync::Arc::from(doh_host),
-                        Some(std::sync::Arc::from("/dns-query"))
+                        true, // trust_negative_responses
+                        vec![connection_cfg]
                     );
                     name_servers.push(name_server);
                 }
