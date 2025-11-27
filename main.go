@@ -2,15 +2,14 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -19,8 +18,6 @@ import (
 	h3_experiment "github.com/masx200/http3-reverse-proxy-server-experiment/h3"
 	dns_experiment "github.com/masx200/http3-reverse-proxy-server-experiment/dns"
 	"github.com/miekg/dns"
-	"github.com/quic-go/quic-go"
-	"github.com/quic-go/quic-go/http3"
 )
 
 // InputTask 对应Rust中的InputTask结构
@@ -113,7 +110,7 @@ func extractHostFromURL(rawURL string) string {
 
 // 加载配置文件
 func loadConfigFromFile(filename string) []InputTask {
-	data, err := io.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		log.Printf("无法读取配置文件: %v", err)
 		return nil
@@ -269,27 +266,7 @@ func dohLookup(domain, dohURL string) ([]string, error) {
 
 // 执行DoH查询 - 使用实验库
 func performDoHQuery(msg *dns.Msg, dohURL string, dohIPs ...string) ([]string, error) {
-	// 首先尝试使用DoH3 (HTTP/3)
-	if len(dohIPs) > 0 {
-		resp, err := dns_experiment.DoHTTP3Client(msg, dohURL, dohIPs...)
-		if err == nil && len(resp.Answer) > 0 {
-			var ips []string
-			for _, ans := range resp.Answer {
-				switch a := ans.(type) {
-				case *dns.A:
-					ips = append(ips, a.A.String())
-				case *dns.AAAA:
-					ips = append(ips, a.AAAA.String())
-				}
-			}
-			return filterValidIPs(ips), nil
-		}
-		if *verbose {
-			fmt.Printf("    -> DoH3查询失败: %v, 尝试普通DoH...\n", err)
-		}
-	}
-
-	// 回退到普通DoH (HTTP/1.1/HTTP/2)
+	// 直接使用实验库的DoH客户端，支持HTTP/3和HTTP/2回退
 	resp, err := dns_experiment.DohClient(msg, dohURL, dohIPs...)
 	if err != nil {
 		return nil, err
