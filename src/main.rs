@@ -2,10 +2,11 @@
 // Now using local Hickory-DNS and Reqwest libraries
 use anyhow::{Context, Result};
 use hickory_resolver::{
-    config::{NameServerConfig, ResolverConfig},
+    // config::{NameServerConfig, ResolverConfig},
     Name, Resolver,
 };
-use reqwest::{Client, Url};
+use reqwest::{Client};
+// use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
