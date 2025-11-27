@@ -232,7 +232,7 @@ let doh_http_client \= Client::builder()\
     \[
         {
             "target\_domain": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
-            "doh\_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/security.cloudflare-dns.com/dns-query",
+            "doh\_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
             "port": 443,
             "prefer\_ipv6": null
         }
@@ -311,7 +311,7 @@ let doh_http_client \= Client::builder()\
 Plaintext
 
 \>\>\> 正在通过
-https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/security.cloudflare-dns.com/dns-query解析
+https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query解析
 hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io 的 HTTPS 记录
 (二进制模式)...\
 \-\> 解析成功，获取到 3 个 IP Hint: \[104.21.33.118, 172.67.162.86,

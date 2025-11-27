@@ -3,9 +3,10 @@
 use anyhow::{Context, Result};
 use hickory_resolver::{
     // config::{NameServerConfig, ResolverConfig},
-    Name, Resolver,
+    Name,
+    Resolver,
 };
-use reqwest::{Client};
+use reqwest::Client;
 // use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -201,7 +202,10 @@ fn add_fallback_cloudflare_ips(ips: &mut HashSet<IpAddr>) {
 
     for ip_str in &fallback_ips {
         if let Ok(ip) = IpAddr::from_str(ip_str) {
-            ips.insert(ip);
+            // 检查是否为有效的IPv4地址且不是之前那个错误地址
+            if is_valid_ipv4_address(ip_str) && !is_bad_ipv4_address(ip_str) {
+                ips.insert(ip);
+            }
         }
     }
 }
@@ -301,7 +305,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
             "test_sni_host": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
             "test_host_header": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
-            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/security.cloudflare-dns.com/dns-query",
+            "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
             "port": 443,
             "prefer_ipv6": null,
             "resolve_mode": "https"
@@ -310,7 +314,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "speed.cloudflare.com",
             "test_sni_host": "speed.cloudflare.com",
             "test_host_header": "speed.cloudflare.com",
-            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/security.cloudflare-dns.com/dns-query",
+            "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
             "port": 443,
             "prefer_ipv6": false,
             "resolve_mode": "https"
@@ -319,7 +323,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "speed.cloudflare.com",
             "test_sni_host": "speed.cloudflare.com",
             "test_host_header": "speed.cloudflare.com",
-            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/security.cloudflare-dns.com/dns-query",
+            "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
             "port": 443,
             "prefer_ipv6": false,
             "direct_ips": ["162.159.140.220", "172.67.214.232"],
