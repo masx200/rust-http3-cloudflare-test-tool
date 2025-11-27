@@ -1,1 +1,12 @@
-window.SIDEBAR_ITEMS = {"fn":["get"],"mod":["multipart"],"struct":["Body","Client","ClientBuilder","Request","RequestBuilder","Response"]};
+window.SIDEBAR_ITEMS = {
+  "fn": ["get"],
+  "mod": ["multipart"],
+  "struct": [
+    "Body",
+    "Client",
+    "ClientBuilder",
+    "Request",
+    "RequestBuilder",
+    "Response",
+  ],
+};

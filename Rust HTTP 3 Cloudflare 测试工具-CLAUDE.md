@@ -11,7 +11,8 @@ code in this repository.
 
 ### DNS解析功能
 
-- **Hickory-DNS (v0.25.2)**: 使用下载的hickory-dns库替代trust-dns，支持RFC 8484标准的完整DNS解析
+- **Hickory-DNS (v0.25.2)**: 使用下载的hickory-dns库替代trust-dns，支持RFC
+  8484标准的完整DNS解析
   - DoH (DNS over HTTPS): 使用Hickory-DNS进行符合RFC 8484的DoH查询
   - HTTPS记录解析: 支持HTTPS (类型65) DNS记录以获取SVCB参数
   - A/AAAA记录解析: 支持传统的IPv4和IPv6地址解析
@@ -35,17 +36,20 @@ code in this repository.
 **重要**: 项目已成功从crates.io版本迁移到本地下载的第三方库：
 
 1. **Hickory-DNS替代**:
-   - 从 `trust-dns-resolver = "0.23.0-alpha.5"` 迁移到 `hickory-resolver = { path = "./hickory-dns-main/crates/resolver", features = ["tokio"] }`
+   - 从 `trust-dns-resolver = "0.23.0-alpha.5"` 迁移到
+     `hickory-resolver = { path = "./hickory-dns-main/crates/resolver", features = ["tokio"] }`
    - 支持完整的RFC 8484 DNS解析器
    - DoH查询使用标准的DNS-over-HTTPS协议
 
 2. **Reqwest本地化**:
-   - 从 `reqwest = { version = "0.12", features = [...] }` 迁移到 `reqwest = { path = "./reqwest-master/reqwest-master", features = [...] }`
+   - 从 `reqwest = { version = "0.12", features = [...] }` 迁移到
+     `reqwest = { path = "./reqwest-master/reqwest-master", features = [...] }`
    - 支持最新的HTTP/3特性（需要`RUSTFLAGS='--cfg reqwest_unstable'`）
 
 ### 依赖管理更新
 
 **关键依赖变更**:
+
 ```toml
 [dependencies]
 # HTTP 客户端 - 使用本地 reqwest 库
@@ -136,6 +140,7 @@ cargo run --release
 ## 版本历史
 
 ### v0.2.0 (当前版本)
+
 - 成功迁移到本地第三方库
 - 支持Hickory-DNS v0.25.2完整DNS解析
 - 支持Reqwest v0.12.24与HTTP/3

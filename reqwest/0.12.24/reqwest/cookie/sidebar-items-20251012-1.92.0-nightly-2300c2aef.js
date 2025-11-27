@@ -1,1 +1,4 @@
-window.SIDEBAR_ITEMS = {"struct":["Cookie","Jar"],"trait":["CookieStore"]};
+window.SIDEBAR_ITEMS = {
+  "struct": ["Cookie", "Jar"],
+  "trait": ["CookieStore"],
+};
