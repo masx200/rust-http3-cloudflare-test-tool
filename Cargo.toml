@@ -7,7 +7,7 @@ description = "A Rust tool for testing Cloudflare HTTP/3 connectivity with DNS o
 license = "MIT"
 
 [dependencies]
-
+aws-lc-sys = "0.20.0" 
 anyhow = "1.0"
 base64 = "0.21"
 bytes = "1.0"
