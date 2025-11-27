@@ -7,6 +7,8 @@ description = "A Rust tool for testing Cloudflare HTTP/3 connectivity with DNS o
 license = "MIT"
 
 [dependencies]
+trust-dns-proto = "0.22"
+base64 = "0.21"
 # HTTP 客户端 - 使用本地 reqwest 库 (包含 HTTP3, rustls, json 特性)
 reqwest = { path = "./reqwest-master/reqwest-master", features = ["json", "rustls-tls", "http3", "gzip", "brotli"] }
 
