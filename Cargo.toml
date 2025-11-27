@@ -51,6 +51,10 @@ h3-quinn = { version = "0.0.10"}
 clap = { version = "4.0", features = ["derive"] }
 rustls-pki-types = "1.10"
 
+# 日志追踪
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+
 [patch.crates-io]
 # 如果需要覆盖某些依赖版本，可以在这里添加
 # reqwest = { path = "./reqwest-master/reqwest-master" }
