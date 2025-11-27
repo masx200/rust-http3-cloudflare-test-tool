@@ -5,3 +5,4 @@ target/CACHEDIR.TAG
 target/release
 target/flycheck0/stderr
 target/flycheck0/stdout
+server.log

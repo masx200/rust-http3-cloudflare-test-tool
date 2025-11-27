@@ -135,24 +135,10 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
             for record in response.answers() {
                 if let Some(rdata) = record.data() {
                     // 检查是否是 SVCB 记录并提取 IP hints
-                    if let RData::SVCB(svc_rec) = rdata {
-                        // 从 ipv4hint 中提取 IP
-                        if let Some(ipv4_param) = svc_rec.svc_params().get(&SvcParamKey::Ipv4Hint) {
-                            if let Some(ip_list) = ipv4_param.ip_addrs() {
-                                for ip in ip_list {
-                                    ips.insert(*ip);
-                                }
-                            }
-                        }
-
-                        // 从 ipv6hint 中提取 IP
-                        if let Some(ipv6_param) = svc_rec.svc_params().get(&SvcParamKey::Ipv6Hint) {
-                            if let Some(ip_list) = ipv6_param.ip_addrs() {
-                                for ip in ip_list {
-                                    ips.insert(*ip);
-                                }
-                            }
-                        }
+                    if let RData::SVCB(_svc_rec) = rdata {
+                        // TODO: 实现SVCB参数解析以提取IPv4/IPv6 hints
+                        // 暂时跳过，只使用A/AAAA记录作为兜底
+                        println!("    -> 找到SVCB记录，但参数解析暂未实现");
                     }
                 }
             }
@@ -166,17 +152,13 @@ async fn resolve_https_record(client: &Client, doh_url: &str, domain: &str) -> R
 
         // 查询 A 记录
         if let Ok(response) = doh_query_manual(client, doh_url, domain, RecordType::A).await {
-            // 检查 Answers, Authorities, Additionals 所有部分
+            // 检查 Answers 部分
             extract_a_aaaa_ips(response.answers(), &mut ips);
-            extract_a_aaaa_ips(response.authoritative(), &mut ips);
-            extract_a_aaaa_ips(response.additionals(), &mut ips);
         }
 
         // 查询 AAAA 记录
         if let Ok(response) = doh_query_manual(client, doh_url, domain, RecordType::AAAA).await {
             extract_a_aaaa_ips(response.answers(), &mut ips);
-            extract_a_aaaa_ips(response.authoritative(), &mut ips);
-            extract_a_aaaa_ips(response.additionals(), &mut ips);
         }
     }
 
