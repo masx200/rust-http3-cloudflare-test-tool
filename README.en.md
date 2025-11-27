@@ -20,13 +20,13 @@ This is a Rust project designed to test Cloudflare's HTTP/3 service.
 1. Clone the repository:
 
 ```bash
-git clone https://gitee.com/masx200/rust-http3-cloudflare-test-tool.git
+git clone https://gitee.com/masx200/golang-http3-cloudflare-test-tool.git
 ```
 
 2. Navigate to the project directory:
 
 ```bash
-cd rust-http3-cloudflare-test-tool
+cd golang-http3-cloudflare-test-tool
 ```
 
 3. Build the project:

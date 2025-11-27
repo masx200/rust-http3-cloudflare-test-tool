@@ -459,6 +459,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "golang-http3-cloudflare-test-tool"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "hickory-client",
+ "hickory-proto",
+ "hickory-resolver",
+ "http",
+ "rand",
+ "regex",
+ "reqwest",
+ "ring",
+ "rustls",
+ "serde",
+ "serde_json",
+ "tokio",
+ "webpki-roots",
+]
+
+[[package]]
 name = "h2"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1352,27 +1373,6 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "rust-http3-cloudflare-test-tool"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "futures",
- "hickory-client",
- "hickory-proto",
- "hickory-resolver",
- "http",
- "rand",
- "regex",
- "reqwest",
- "ring",
- "rustls",
- "serde",
- "serde_json",
- "tokio",
- "webpki-roots",
 ]
 
 [[package]]

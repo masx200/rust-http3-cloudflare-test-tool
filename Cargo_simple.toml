@@ -1,5 +1,5 @@
 [package]
-name = "rust-http3-cloudflare-test-tool-simple"
+name = "golang-http3-cloudflare-test-tool-simple"
 version = "0.1.0"
 edition = "2021"
 authors = ["masx200"]
