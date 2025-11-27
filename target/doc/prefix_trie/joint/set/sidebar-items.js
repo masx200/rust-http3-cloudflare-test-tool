@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["CoveringDifference","Difference","Intersection","IntoIter","Iter","JointPrefixSet","Union"]};

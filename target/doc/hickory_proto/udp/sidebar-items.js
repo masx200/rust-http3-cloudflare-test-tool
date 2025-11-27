@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_RETRY_FLOOR","MAX_RECEIVE_BUFFER_SIZE"],"struct":["UdpClientConnect","UdpClientStream","UdpClientStreamBuilder","UdpStream"],"trait":["DnsUdpSocket","UdpSocket"]};

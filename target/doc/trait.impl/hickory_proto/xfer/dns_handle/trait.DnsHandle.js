@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["hickory_client",[["impl&lt;H: <a class=\"trait\" href=\"hickory_client/client/trait.ClientHandle.html\" title=\"trait hickory_client::client::ClientHandle\">ClientHandle</a>&gt; <a class=\"trait\" href=\"hickory_proto/xfer/dns_handle/trait.DnsHandle.html\" title=\"trait hickory_proto::xfer::dns_handle::DnsHandle\">DnsHandle</a> for <a class=\"struct\" href=\"hickory_client/client/struct.MemoizeClientHandle.html\" title=\"struct hickory_client::client::MemoizeClientHandle\">MemoizeClientHandle</a>&lt;H&gt;"],["impl&lt;P: <a class=\"trait\" href=\"hickory_proto/runtime/trait.RuntimeProvider.html\" title=\"trait hickory_proto::runtime::RuntimeProvider\">RuntimeProvider</a>&gt; <a class=\"trait\" href=\"hickory_proto/xfer/dns_handle/trait.DnsHandle.html\" title=\"trait hickory_proto::xfer::dns_handle::DnsHandle\">DnsHandle</a> for <a class=\"struct\" href=\"hickory_client/client/struct.Client.html\" title=\"struct hickory_client::client::Client\">Client</a>&lt;P&gt;"]]],["hickory_proto",[]],["hickory_resolver",[["impl&lt;P: <a class=\"trait\" href=\"hickory_resolver/trait.ConnectionProvider.html\" title=\"trait hickory_resolver::ConnectionProvider\">ConnectionProvider</a>&gt; <a class=\"trait\" href=\"hickory_proto/xfer/dns_handle/trait.DnsHandle.html\" title=\"trait hickory_proto::xfer::dns_handle::DnsHandle\">DnsHandle</a> for <a class=\"struct\" href=\"hickory_resolver/struct.NameServerPool.html\" title=\"struct hickory_resolver::NameServerPool\">NameServerPool</a>&lt;P&gt;"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[982,21,500]}

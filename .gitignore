@@ -7,3 +7,4 @@ target/flycheck0/stderr
 target/flycheck0/stdout
 server.log
 http3-test-tool.exe
+.vscode/settings.json

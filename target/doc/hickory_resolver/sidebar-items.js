@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_TTL"],"fn":["version"],"mod":["caching_client","config","lookup","lookup_ip","system_conf"],"struct":["Hosts","Name","NameServer","NameServerPool","NameServerTransportState","PoolContext","Resolver","ResolverBuilder","ResponseCache","TlsConfig","TtlBounds","TtlConfig"],"trait":["ConnectionProvider","IntoName"],"type":["TokioResolver"]};

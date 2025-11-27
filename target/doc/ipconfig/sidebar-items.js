@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["IfType","OperStatus"],"fn":["get_adapters"],"mod":["computer","error"],"struct":["Adapter"]};

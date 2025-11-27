@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["MessageSignature","MessageType","OpCode","ResponseCode"],"fn":["emit_message_parts"],"mod":["update_message"],"struct":["DnsRequest","DnsRequestOptions","DnsResponse","Edns","EdnsFlags","Header","LowerQuery","Message","MessageParts","Query","SerialMessage"],"trait":["EmitAndCount","MessageSigner","ResponseSigner"],"type":["MessageVerifier"]};
