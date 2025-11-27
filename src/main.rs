@@ -45,6 +45,34 @@ struct TestResult {
 }
 
 // --- 3. 使用Hickory-DNS进行DNS解析 (支持DoH和RFC 8484) ---
+// 添加缺失的IPv4地址验证函数
+fn is_valid_ipv4_address(ip_str: &str) -> bool {
+    match ip_str {
+        "0.0.0.0" | "127.0.0.0" | "255.255.255.255" => false, // 排除无效的IPv4地址
+        _ => {
+            // 使用IPv4地址解析验证
+            let parts: Vec<&str> = ip_str.split('.').collect();
+            if parts.len() != 4 {
+                return false;
+            }
+
+            for part in parts {
+                if part.parse::<u8>().is_err() {
+                    return false;
+                }
+            }
+
+            // 检查是否为之前那个错误的IP地址
+            ip_str != "183.192.65.101" // 排除特定的错误IP
+        }
+    }
+}
+
+// 检查是否为已知的错误IPv4地址
+fn is_bad_ipv4_address(ip_str: &str) -> bool {
+    ip_str == "183.192.65.101" // 明确标记这个IP为错误
+}
+
 async fn resolve_domain_with_hickory(client: &Client, task: &InputTask) -> Result<Vec<IpAddr>> {
     let mut ips = HashSet::new();
 
