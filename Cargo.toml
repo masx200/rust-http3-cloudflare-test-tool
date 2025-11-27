@@ -7,7 +7,6 @@ description = "A Rust tool for testing Cloudflare HTTP/3 connectivity with DNS o
 license = "MIT"
 
 [dependencies]
-aws-lc-sys = "0.20.0" 
 anyhow = "1.0"
 base64 = "0.21"
 bytes = "1.0"
@@ -27,8 +26,8 @@ regex = "1"
 urlencoding = "2"
 
 # Hickory-DNS - 使用本地 hickory-dns 库替代 trust-dns
-hickory-resolver = { path = "./hickory-dns-main/crates/resolver", features = ["tokio"] }
-hickory-client = { path = "./hickory-dns-main/crates/client" }
+hickory-resolver = { path = "./hickory-dns-main/crates/resolver", features = ["tokio", "dnssec-ring"] }
+hickory-client = { path = "./hickory-dns-main/crates/client", features = ["dnssec-ring"] }
 
 # HTTP URI 解析库，用于解析 DoH URL
 http = "1.1"
@@ -37,8 +36,8 @@ http = "1.1"
 rand = "0.9"
 
 # 其他 Hickory-DNS 相关依赖
-hickory-proto = { path = "./hickory-dns-main/crates/proto" }
-rustls = { version = "0.23", features = ["std"] }
+hickory-proto = { path = "./hickory-dns-main/crates/proto", features = ["dnssec-ring"] }
+rustls = { version = "0.23", features = ["std", "ring"] }
 webpki-roots = "1"
 ring = "0.17"
 
@@ -55,3 +54,5 @@ rustls-pki-types = "1.10"
 [patch.crates-io]
 # 如果需要覆盖某些依赖版本，可以在这里添加
 # reqwest = { path = "./reqwest-master/reqwest-master" }
+# 强制 rustls 使用 ring 而不是 aws-lc-rs
+rustls = { version = "0.21.12", features = ["ring"], default-features = false }

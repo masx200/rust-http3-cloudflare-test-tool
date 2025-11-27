@@ -39,10 +39,6 @@ std = [
     "url/std",
 ]
 
-tls-aws-lc-rs = ["tokio-rustls/aws-lc-rs", "__tls"]
-https-aws-lc-rs = ["tls-aws-lc-rs", "__https"]
-quic-aws-lc-rs = ["quinn/rustls-aws-lc-rs", "tls-aws-lc-rs", "__quic"]
-h3-aws-lc-rs = ["quic-aws-lc-rs", "__h3"]
 
 tls-ring = ["tokio-rustls/ring", "__tls"]
 https-ring = ["tls-ring", "__https"]
@@ -56,7 +52,6 @@ __h3 = ["dep:h3", "dep:h3-quinn", "dep:http", "std"]
 
 rustls-platform-verifier = ["dep:rustls-platform-verifier", "std"]
 
-dnssec-aws-lc-rs = ["dep:aws-lc-rs", "aws-lc-rs/aws-lc-sys", "aws-lc-rs/ring-io", "__dnssec"]
 dnssec-ring = ["dep:ring", "__dnssec"]
 __dnssec = ["dep:bitflags", "dep:rustls-pki-types", "dep:time", "dep:lru-cache", "dep:parking_lot", "std"]
 testing = ["std"]
@@ -85,7 +80,6 @@ path = "src/lib.rs"
 
 [dependencies]
 async-trait.workspace = true
-aws-lc-rs = { workspace = true, optional = true }
 backtrace = { workspace = true, optional = true }
 bitflags = { workspace = true, optional = true }
 bytes = { workspace = true, optional = true }
