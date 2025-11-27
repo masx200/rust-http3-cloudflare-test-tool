@@ -58,7 +58,7 @@
 
      # 指定 DoH 服务
      ./http3-test-tool -domain "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io" \
-       -doh-url "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query"
+       -doh-url "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query"
      ```
 
      ### 2. 使用配置文件
@@ -71,7 +71,7 @@
          "doh_resolve_domain": "speed.cloudflare.com",
          "test_sni_host": "speed.cloudflare.com",
          "test_host_header": "speed.cloudflare.com",
-         "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
+         "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
          "port": 443,
          "prefer_ipv6": false,
          "resolve_mode": "https"
@@ -80,7 +80,7 @@
          "doh_resolve_domain": "speed.cloudflare.com",
          "test_sni_host": "speed.cloudflare.com",
          "test_host_header": "speed.cloudflare.com",
-         "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
+         "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
          "port": 443,
          "prefer_ipv6": false,
          "resolve_mode": "direct",
@@ -123,7 +123,7 @@
          "protocol": "h3",
          "latency_ms": 127,
          "server_header": "cloudflare",
-         "dns_source": "DoH (https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query)"
+         "dns_source": "DoH (https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query)"
        },
        {
          "domain_used": "speed.cloudflare.com",
@@ -136,7 +136,7 @@
          "protocol": "h2",
          "latency_ms": 156,
          "server_header": "cloudflare",
-         "dns_source": "DoH (https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query)"
+         "dns_source": "DoH (https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query)"
        }
      ]
      ```
@@ -149,7 +149,7 @@
      |------|--------|------|
      | `-config` | "" | 配置文件路径 |
      | `-domain` | "" | 测试域名 |
-     | `-doh-url` | "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query" | DoH 服务 URL |
+     | `-doh-url` | "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query" | DoH 服务 URL |
      | `-resolve-mode` | "https" | DNS 解析模式 (https, a_aaaa, direct) |
      | `-test-url` | "https://hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io" | 测试 URL |
      | `-port` | 443 | 目标端口 |

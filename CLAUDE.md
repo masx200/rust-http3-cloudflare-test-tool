@@ -110,7 +110,7 @@ from Rust to Go and includes two main components:
     "doh_resolve_domain": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
     "test_sni_host": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
     "test_host_header": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
-    "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
+    "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
     "port": 443,
     "prefer_ipv6": false,
     "resolve_mode": "https", // "https", "a_aaaa", "direct"

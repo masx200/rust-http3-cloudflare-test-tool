@@ -8,7 +8,8 @@ mod tests {
     use trust_dns_proto::serialize::binary::BinEncodable;
 
     // DoH 服务器 URL
-    const DOH_SERVER: &str = "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query";
+    const DOH_SERVER: &str =
+        "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query";
 
     // 要查询的域名
     const DOMAIN_TO_QUERY: &str = "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io";
@@ -85,7 +86,8 @@ mod tests {
         // 序列化 DNS 查询
         let mut request_bytes = Vec::new();
         {
-            let mut encoder = trust_dns_proto::serialize::binary::BinEncoder::new(&mut request_bytes);
+            let mut encoder =
+                trust_dns_proto::serialize::binary::BinEncoder::new(&mut request_bytes);
             message
                 .emit(&mut encoder)
                 .expect("Failed to serialize DNS query");

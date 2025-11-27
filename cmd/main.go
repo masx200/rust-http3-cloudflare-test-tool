@@ -15,48 +15,48 @@ import (
 	"sync"
 	"time"
 
-	h3_experiment "github.com/masx200/http3-reverse-proxy-server-experiment/h3"
 	dns_experiment "github.com/masx200/http3-reverse-proxy-server-experiment/dns"
+	h3_experiment "github.com/masx200/http3-reverse-proxy-server-experiment/h3"
 	"github.com/miekg/dns"
 )
 
 // InputTask 对应Rust中的InputTask结构
 type InputTask struct {
 	DohResolveDomain string   `json:"doh_resolve_domain"`
-	TestSniHost     string   `json:"test_sni_host"`
-	TestHostHeader  string   `json:"test_host_header"`
-	DohURL          string   `json:"doh_url"`
-	Port            int      `json:"port"`
-	PreferIPv6      *bool    `json:"prefer_ipv6"`
-	ResolveMode     string   `json:"resolve_mode"`
-	DirectIPs       []string `json:"direct_ips"`
+	TestSniHost      string   `json:"test_sni_host"`
+	TestHostHeader   string   `json:"test_host_header"`
+	DohURL           string   `json:"doh_url"`
+	Port             int      `json:"port"`
+	PreferIPv6       *bool    `json:"prefer_ipv6"`
+	ResolveMode      string   `json:"resolve_mode"`
+	DirectIPs        []string `json:"direct_ips"`
 }
 
 // TestResult 对应Rust中的TestResult结构
 type TestResult struct {
-	DomainUsed    string  `json:"domain_used"`
-	TargetIP      string  `json:"target_ip"`
-	IPVersion     string  `json:"ip_version"`
-	SniHost       string  `json:"sni_host"`
-	HostHeader    string  `json:"host_header"`
-	Success       bool    `json:"success"`
-	StatusCode    *uint16 `json:"status_code"`
-	Protocol      string  `json:"protocol"`
-	LatencyMs     *uint64 `json:"latency_ms"`
-	ServerHeader  *string `json:"server_header"`
-	ErrorMessage  *string `json:"error_msg"`
-	DNSSource     string  `json:"dns_source"`
+	DomainUsed   string  `json:"domain_used"`
+	TargetIP     string  `json:"target_ip"`
+	IPVersion    string  `json:"ip_version"`
+	SniHost      string  `json:"sni_host"`
+	HostHeader   string  `json:"host_header"`
+	Success      bool    `json:"success"`
+	StatusCode   *uint16 `json:"status_code"`
+	Protocol     string  `json:"protocol"`
+	LatencyMs    *uint64 `json:"latency_ms"`
+	ServerHeader *string `json:"server_header"`
+	ErrorMessage *string `json:"error_msg"`
+	DNSSource    string  `json:"dns_source"`
 }
 
 // 全局配置
 var (
-	configFile = flag.String("config", "", "配置文件路径")
-	domain     = flag.String("domain", "", "测试域名")
-	dohURL     = flag.String("doh-url", "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query", "DoH服务URL")
+	configFile  = flag.String("config", "", "配置文件路径")
+	domain      = flag.String("domain", "", "测试域名")
+	dohURL      = flag.String("doh-url", "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query", "DoH服务URL")
 	resolveMode = flag.String("resolve-mode", "https", "解析模式: https, a_aaaa, direct")
-	testURL    = flag.String("test-url", "https://hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io", "测试URL")
-	port       = flag.Int("port", 443, "目标端口")
-	verbose    = flag.Bool("verbose", false, "详细输出")
+	testURL     = flag.String("test-url", "https://hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io", "测试URL")
+	port        = flag.Int("port", 443, "目标端口")
+	verbose     = flag.Bool("verbose", false, "详细输出")
 )
 
 func main() {
@@ -71,11 +71,11 @@ func main() {
 		// 使用命令行参数
 		task := InputTask{
 			DohResolveDomain: *domain,
-			TestSniHost:     extractHostFromURL(*testURL),
-			TestHostHeader:  extractHostFromURL(*testURL),
-			DohURL:          *dohURL,
-			Port:            *port,
-			ResolveMode:     *resolveMode,
+			TestSniHost:      extractHostFromURL(*testURL),
+			TestHostHeader:   extractHostFromURL(*testURL),
+			DohURL:           *dohURL,
+			Port:             *port,
+			ResolveMode:      *resolveMode,
 		}
 		tasks = append(tasks, task)
 	} else {
@@ -130,31 +130,31 @@ func getDefaultTasks() []InputTask {
 	return []InputTask{
 		{
 			DohResolveDomain: "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
-			TestSniHost:     "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
-			TestHostHeader:  "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
-			DohURL:          "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
-			Port:            443,
-			PreferIPv6:      getBoolPtr(true),
-			ResolveMode:     "https",
+			TestSniHost:      "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
+			TestHostHeader:   "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
+			DohURL:           "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
+			Port:             443,
+			PreferIPv6:       getBoolPtr(true),
+			ResolveMode:      "https",
 		},
 		{
 			DohResolveDomain: "speed.cloudflare.com",
-			TestSniHost:     "speed.cloudflare.com",
-			TestHostHeader:  "speed.cloudflare.com",
-			DohURL:          "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
-			Port:            443,
-			PreferIPv6:      getBoolPtr(true),
-			ResolveMode:     "https",
+			TestSniHost:      "speed.cloudflare.com",
+			TestHostHeader:   "speed.cloudflare.com",
+			DohURL:           "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
+			Port:             443,
+			PreferIPv6:       getBoolPtr(true),
+			ResolveMode:      "https",
 		},
 		{
 			DohResolveDomain: "speed.cloudflare.com",
-			TestSniHost:     "speed.cloudflare.com",
-			TestHostHeader:  "speed.cloudflare.com",
-			DohURL:          "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
-			Port:            443,
-			PreferIPv6:      getBoolPtr(true),
-			DirectIPs:       []string{"162.159.140.220", "172.67.214.232", "2606:4700:7::da", "2a06:98c1:58::da"},
-			ResolveMode:     "direct",
+			TestSniHost:      "speed.cloudflare.com",
+			TestHostHeader:   "speed.cloudflare.com",
+			DohURL:           "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
+			Port:             443,
+			PreferIPv6:       getBoolPtr(true),
+			DirectIPs:        []string{"162.159.140.220", "172.67.214.232", "2606:4700:7::da", "2a06:98c1:58::da"},
+			ResolveMode:      "direct",
 		},
 	}
 }
@@ -386,10 +386,10 @@ func testConnectivity(task InputTask, targetIP, dnsSource string) TestResult {
 	result := TestResult{
 		DomainUsed: task.DohResolveDomain,
 		TargetIP:   targetIP,
-		IPVersion:   "IPv4",
-		SniHost:     task.TestSniHost,
-		HostHeader:  task.TestHostHeader,
-		DNSSource:   dnsSource,
+		IPVersion:  "IPv4",
+		SniHost:    task.TestSniHost,
+		HostHeader: task.TestHostHeader,
+		DNSSource:  dnsSource,
 	}
 
 	if strings.Contains(targetIP, ":") {

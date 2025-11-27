@@ -248,7 +248,7 @@ src/
     "doh_resolve_domain": "example.com",
     "test_sni_host": "example.com",
     "test_host_header": "example.com",
-    "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
+    "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
     "port": 443,
     "prefer_ipv6": false,
     "resolve_mode": "https", // "https", "a_aaaa", "direct"

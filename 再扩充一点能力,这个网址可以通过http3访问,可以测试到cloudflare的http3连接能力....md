@@ -131,7 +131,7 @@ async fn resolve\_https\_record(client: \&Client, domain: &str) \-\>
 Result\<Vec\<String\>\> {\
 // 使用 Type 65 (HTTPS) 查询\
 let dns\_url \= format\!(\
-"https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query?name={}\&type=HTTPS",\
+"https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query?name={}\&type=HTTPS",\
 domain\
 );
 
