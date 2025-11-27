@@ -615,7 +615,7 @@ dependencies = [
  "clap",
  "futures",
  "h3 0.0.8",
- "h3-quinn 0.0.10",
+ "h3-quinn",
  "hickory-client",
  "hickory-proto",
  "hickory-resolver",
@@ -680,17 +680,6 @@ dependencies = [
  "http",
  "pin-project-lite",
  "tokio",
-]
-
-[[package]]
-name = "h3-quinn"
-version = "0.0.10"
-dependencies = [
- "bytes",
- "futures-util",
- "h3 0.0.8",
- "quinn 0.11.9",
- "tokio-util",
 ]
 
 [[package]]
@@ -1700,7 +1689,7 @@ dependencies = [
  "futures-util",
  "h2",
  "h3 0.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "h3-quinn 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "h3-quinn",
  "http",
  "http-body",
  "http-body-util",
