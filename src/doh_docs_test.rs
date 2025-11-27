@@ -13,15 +13,10 @@ mod doh_docs_integration_tests {
     const TAVILY_API_KEY: &str = "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"; // 需要配置实际的API密钥
 
     // 预期的IP地址（来自用户提供的数据）
-    const EXPECTED_IPV6_ADDRS: &[&str] = &[
-        "2606:4700:3030::ac43:a256",
-        "2606:4700:3031::6815:2176",
-    ];
+    const EXPECTED_IPV6_ADDRS: &[&str] =
+        &["2606:4700:3030::ac43:a256", "2606:4700:3031::6815:2176"];
 
-    const EXPECTED_IPV4_ADDRS: &[&str] = &[
-        "104.21.33.118",
-        "172.67.162.86",
-    ];
+    const EXPECTED_IPV4_ADDRS: &[&str] = &["104.21.33.118", "172.67.162.86"];
 
     #[derive(Debug, Serialize, Deserialize)]
     struct DNSQuestion {
@@ -81,7 +76,7 @@ mod doh_docs_integration_tests {
 
         // 使用Google DoH JSON API (RFC 8484 Section 6.1)
         let doh_url = format!(
-            "https://dns.google/resolve?name={}&type={}",
+            "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query?name={}&type={}",
             urlencoding::encode(domain),
             qtype
         );
@@ -125,13 +120,15 @@ mod doh_docs_integration_tests {
 
         let found_set: std::collections::HashSet<&str> =
             found_ips.iter().map(|s| s.as_str()).collect();
-        let expected_set: std::collections::HashSet<&str> =
-            expected_ips.iter().cloned().collect();
+        let expected_set: std::collections::HashSet<&str> = expected_ips.iter().cloned().collect();
 
         let matches = found_set.intersection(&expected_set).count();
         let total_expected = expected_set.len();
 
-        println!("✅ Matched {}/{} {} addresses", matches, total_expected, ip_type);
+        println!(
+            "✅ Matched {}/{} {} addresses",
+            matches, total_expected, ip_type
+        );
 
         matches >= total_expected / 2 // 至少匹配一半预期地址
     }
@@ -176,7 +173,10 @@ mod doh_docs_integration_tests {
     #[tokio::test]
     /// 测试DoH协议域名解析 - 验证目标域名的IP地址
     async fn test_doh_domain_resolution() -> Result<()> {
-        println!("🚀 Starting DoH domain resolution test for: {}", TARGET_DOMAIN);
+        println!(
+            "🚀 Starting DoH domain resolution test for: {}",
+            TARGET_DOMAIN
+        );
 
         // 首先测试一个已知的域名来验证DoH API是否工作
         let test_domains = vec![
@@ -196,7 +196,8 @@ mod doh_docs_integration_tests {
 
                     if domain == TARGET_DOMAIN {
                         // 验证IPv4地址
-                        let ipv4_valid = verify_ip_addresses(&ipv4_addresses, EXPECTED_IPV4_ADDRS, "IPv4");
+                        let ipv4_valid =
+                            verify_ip_addresses(&ipv4_addresses, EXPECTED_IPV4_ADDRS, "IPv4");
                         if ipv4_valid {
                             println!("✅ {} IPv4 validation PASSED", domain);
                         } else {
@@ -211,7 +212,8 @@ mod doh_docs_integration_tests {
 
                         if domain == TARGET_DOMAIN {
                             // 验证IPv6地址
-                            let ipv6_valid = verify_ip_addresses(&ipv6_addresses, EXPECTED_IPV6_ADDRS, "IPv6");
+                            let ipv6_valid =
+                                verify_ip_addresses(&ipv6_addresses, EXPECTED_IPV6_ADDRS, "IPv6");
                             if ipv6_valid {
                                 println!("✅ {} IPv6 validation PASSED", domain);
                             } else {
@@ -298,11 +300,16 @@ mod doh_docs_integration_tests {
         let ipv6_addrs = extract_ip_addresses(&aaaa_query, 28);
         let ipv4_addrs = extract_ip_addresses(&a_query, 1);
 
-        assert!(!ipv6_addrs.is_empty() || !ipv4_addrs.is_empty(),
-                 "No IP addresses found for domain");
+        assert!(
+            !ipv6_addrs.is_empty() || !ipv4_addrs.is_empty(),
+            "No IP addresses found for domain"
+        );
 
-        println!("✅ DoH resolution successful - found {} IPv6 and {} IPv4 addresses",
-                ipv6_addrs.len(), ipv4_addrs.len());
+        println!(
+            "✅ DoH resolution successful - found {} IPv6 and {} IPv4 addresses",
+            ipv6_addrs.len(),
+            ipv4_addrs.len()
+        );
 
         // 2. 测试常用Rust crates的Docs.rs URL生成
         println!("\n2️⃣ Testing Docs.rs URL generation...");
@@ -318,8 +325,11 @@ mod doh_docs_integration_tests {
             println!("📚 {} -> {}", crate_name, docs_url);
 
             // 验证URL格式
-            assert!(docs_url.starts_with("https://docs.rs/"),
-                    "Invalid Docs.rs URL format: {}", docs_url);
+            assert!(
+                docs_url.starts_with("https://docs.rs/"),
+                "Invalid Docs.rs URL format: {}",
+                docs_url
+            );
         }
 
         // 3. 模拟Tavily搜索并生成Docs.rs链接
@@ -330,13 +340,11 @@ mod doh_docs_integration_tests {
             println!("🔍 Mock searching: {}", crate_name);
 
             // 模拟搜索结果
-            let mock_results = vec![
-                TavilySearchResult {
-                    title: format!("{} - crates.io", crate_name),
-                    url: format!("https://crates.io/crates/{}", crate_name),
-                    snippet: format!("A {} crate for web development", crate_name),
-                }
-            ];
+            let mock_results = vec![TavilySearchResult {
+                title: format!("{} - crates.io", crate_name),
+                url: format!("https://crates.io/crates/{}", crate_name),
+                snippet: format!("A {} crate for web development", crate_name),
+            }];
 
             for result in mock_results {
                 println!("  📦 Found: {}", result.title);
@@ -387,8 +395,11 @@ mod doh_docs_integration_tests {
         println!("Average response time: {:?}", average_duration);
 
         // 验证响应时间合理（应该在5秒以内）
-        assert!(average_duration < Duration::from_secs(5),
-                "DoH response time too slow: {:?}", average_duration);
+        assert!(
+            average_duration < Duration::from_secs(5),
+            "DoH response time too slow: {:?}",
+            average_duration
+        );
 
         println!("✅ DoH performance test PASSED");
         Ok(())
@@ -406,7 +417,10 @@ mod doh_docs_integration_tests {
             Ok(query) => {
                 // 查询可能成功但没有答案
                 if let Some(answers) = &query.answer {
-                    assert!(answers.is_empty(), "Invalid domain should return no answers");
+                    assert!(
+                        answers.is_empty(),
+                        "Invalid domain should return no answers"
+                    );
                 }
                 println!("✅ Invalid domain handled correctly - no answers returned");
             }
