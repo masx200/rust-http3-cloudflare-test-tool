@@ -10,7 +10,7 @@ license = "MIT"
 anyhow = "1.0"
 base64 = "0.21"
 bytes = "1.0"
-h3 = { path = "./h3-master/h3" }
+h3 = { version = "0.0.8", features = ["quinn"] }
 quinn = { version = "0.10", features = ["rustls"] }
 rcgen = "0.11"
 reqwest = { version = "0.12.24", features = ["json","rustls-tls", "http3", "gzip", "brotli"] }
@@ -26,8 +26,8 @@ regex = "1"
 urlencoding = "2"
 
 # Hickory-DNS - 使用本地 hickory-dns 库替代 trust-dns
-hickory-resolver = { path = "./hickory-dns-main/crates/resolver", features = ["tokio", "dnssec-ring"] }
-hickory-client = { path = "./hickory-dns-main/crates/client", features = ["dnssec-ring"] }
+hickory-resolver = {  version="0.25.2", features = ["tokio", "dnssec-ring"] }
+hickory-client = { version="0.25.2", features = ["dnssec-ring"] }
 
 # HTTP URI 解析库，用于解析 DoH URL
 http = "1.1"
