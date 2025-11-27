@@ -23,7 +23,6 @@ mod test_test;
 mod h3_direct_test;
 mod main_h3_test;
 mod main_comprehensive_h3;
-#[cfg(test)]
 mod http3_test;
 // --- 1. 输入配置 ---
 #[derive(Debug, Clone, Deserialize, Serialize)]

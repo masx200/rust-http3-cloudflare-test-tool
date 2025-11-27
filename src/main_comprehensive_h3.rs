@@ -488,7 +488,7 @@ pub async fn run_comprehensive_h3_tests() -> Result<()> {
 pub fn print_table_output(results: &[ComprehensiveTestResult]) {
     println!("\n📊 测试结果表格:");
     println!("{}", "=".repeat(150));
-    println!("{:<20} {:<15} {:<10} {:<15} {:<10} {:<8} {:<8} {:<10} {:<10} {:<15} {:<10}",
+    println!("{:<20} {:<15} {:<10} {:<15} {:<10} {:<8} {:<8} {:<10} {:<15} {:<10}",
         "域名", "IP地址", "版本", "协议", "状态", "延迟", "大小", "ALPN", "测试方法", "错误");
     println!("{}", "-".repeat(150));
 
@@ -499,7 +499,7 @@ pub fn print_table_output(results: &[ComprehensiveTestResult]) {
         let alpn = result.alpn_protocol.as_deref().unwrap_or("N/A");
         let error = result.error_message.as_deref().unwrap_or("");
 
-        println!("{:<20} {:<15} {:<10} {:<15} {:<10} {:<8} {:<8} {:<10} {:<10} {:<15} {:<10}",
+        println!("{:<20} {:<15} {:<10} {:<15} {:<10} {:<8} {:<8} {:<10} {:<15} {:<10}",
             result.target_domain,
             result.target_ip,
             result.ip_version,

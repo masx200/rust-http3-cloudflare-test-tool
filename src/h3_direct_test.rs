@@ -4,8 +4,8 @@ use bytes::{Bytes, Buf};
 use h3::{
     client::{builder, SendRequest},
     quic,
-    ext::{self, Header},
 };
+use http::{Method, HeaderMap, HeaderValue};
 use h3_quinn::quinn;
 use quinn::{ClientConfig, Endpoint, TransportConfig};
 use rcgen::CertificateParams;
@@ -126,10 +126,18 @@ pub struct H3Tester {
 
 impl H3Tester {
     pub fn new() -> Result<Self> {
-        let mut client_config = ClientConfig::default();
-
         // 配置 TLS
         let mut root_store = RootCertStore::empty();
+        root_store.add_parsable_certificates(
+            rustls_native_certs::load_native_certs()
+                .context("Failed to load native certificates")?,
+        );
+
+        let crypto = rustls::ClientConfig::builder()
+            .with_safe_defaults()
+            .with_root_certificates(root_store)
+            .with_no_client_auth();
+        let mut client_config = ClientConfig::new(Arc::new(crypto));
         root_store.add_parsable_certificates(
             rustls_native_certs::load_native_certs()
                 .context("Failed to load native certificates")?
@@ -202,19 +210,19 @@ impl H3Tester {
         let user_agent = config.user_agent.as_deref().unwrap_or("rust-h3-test-tool/1.0");
 
         let mut request = h3_request
-            .send_request(h3::Method::GET, &request_url)
+            .send_request(Method::GET, &request_url)
             .await
             .context("Failed to send HTTP/3 request")?;
 
-        // 设置请求头
-        h3::ext::Header::Method(&mut request, h3::Method::GET);
-        h3::ext::Header::Scheme(&mut request, h3::ext::Scheme::Https);
-        h3::ext::Header::Authority(&mut request, &config.target_domain);
-        h3::ext::Header::Path(&mut request, &config.test_path);
-        h3::ext::Header::UserAgent(&mut request, user_agent);
-        h3::ext::Header::Accept(&mut request, "*/*");
+        // 设置请求头 - 注意：这些头设置方法可能需要根据h3库的API调整
+        // h3::ext::Header::Method(&mut request, Method::GET);
+        // h3::ext::Header::Scheme(&mut request, h3::ext::Scheme::Https);
+        // h3::ext::Header::Authority(&mut request, &config.target_domain);
+        // h3::ext::Header::Path(&mut request, &config.test_path);
+        // h3::ext::Header::UserAgent(&mut request, user_agent);
+        // h3::ext::Header::Accept(&mut request, "*/*");
 
-        println!("    -> HTTP/3 请求已发送: {} {}", h3::Method::GET, config.test_path);
+        println!("    -> HTTP/3 请求已发送: {} {}", Method::GET, config.test_path);
 
         // 接收响应
         let timeout_duration = Duration::from_secs(config.timeout_seconds);
