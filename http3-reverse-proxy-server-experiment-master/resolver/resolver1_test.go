@@ -17,8 +17,8 @@ func DoHTTP3Client(m *dns.Msg, s string) (r *dns.Msg, err error) {
 	return h3_experiment.DoHTTP3Client(m, s)
 }
 func GetQueryCallbacks2() generic.MapInterface[string, func(m *dns.Msg) (r *dns.Msg, err error)] {
-	return generic.MapImplementFromMap(map[string]func(m *dns.Msg) (r *dns.Msg, err error){"https://cloudflare-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
-		return DohClient(m, "https://cloudflare-dns.com/dns-query")
+	return generic.MapImplementFromMap(map[string]func(m *dns.Msg) (r *dns.Msg, err error){"https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
+		return DohClient(m, "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query")
 	}, "https://dns.alidns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
 		return DohClient(m, "https://dns.alidns.com/dns-query")
 	}, "https://unfiltered.adguard-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
@@ -34,8 +34,8 @@ func DohClient(m *dns.Msg, s string) (r *dns.Msg, err error) {
 
 func TestResolver77(t *testing.T) {
 	x := "hello-word-worker-cloudflare.masx200.workers.dev"
-	results, err := dns_experiment.DnsResolverMultipleServers(x, generic.MapImplementFromMap(map[string]func(m *dns.Msg) (r *dns.Msg, err error){"https://cloudflare-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
-		return DohClient(m, "https://cloudflare-dns.com/dns-query")
+	results, err := dns_experiment.DnsResolverMultipleServers(x, generic.MapImplementFromMap(map[string]func(m *dns.Msg) (r *dns.Msg, err error){"https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
+		return DohClient(m, "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query")
 	}}), func(dro *dns_experiment.DnsResolverOptions) {
 		dro.DnsCache = DnsCache
 	})
@@ -52,8 +52,8 @@ func TestResolver77(t *testing.T) {
 }
 func TestResolver2(t *testing.T) {
 	x := "nextjs-doh-reverse-proxy.onrender.com"
-	results, err := dns_experiment.DnsResolverMultipleServers(x, generic.MapImplementFromMap(map[string]func(m *dns.Msg) (r *dns.Msg, err error){"https://cloudflare-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
-		return DohClient(m, "https://cloudflare-dns.com/dns-query")
+	results, err := dns_experiment.DnsResolverMultipleServers(x, generic.MapImplementFromMap(map[string]func(m *dns.Msg) (r *dns.Msg, err error){"https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
+		return DohClient(m, "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query")
 	}}), func(dro *dns_experiment.DnsResolverOptions) {
 		dro.DnsCache = DnsCache
 	})
@@ -70,8 +70,8 @@ func TestResolver2(t *testing.T) {
 }
 func TestResolver3(t *testing.T) {
 	x := "www.bilibili.com"
-	results, err := dns_experiment.DnsResolverMultipleServers(x, generic.MapImplementFromMap(map[string]func(m *dns.Msg) (r *dns.Msg, err error){"https://cloudflare-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
-		return DohClient(m, "https://cloudflare-dns.com/dns-query")
+	results, err := dns_experiment.DnsResolverMultipleServers(x, generic.MapImplementFromMap(map[string]func(m *dns.Msg) (r *dns.Msg, err error){"https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
+		return DohClient(m, "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query")
 	}}), func(dro *dns_experiment.DnsResolverOptions) {
 		dro.DnsCache = DnsCache
 	})
@@ -89,8 +89,8 @@ func TestResolver3(t *testing.T) {
 func TestResolver4(t *testing.T) {
 	x := "www.bilibili.com"
 	results, err := dns_experiment.DnsResolverMultipleServers(x,
-		generic.MapImplementFromMap(map[string]func(m *dns.Msg) (r *dns.Msg, err error){"https://cloudflare-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
-			return DohClient(m, "https://cloudflare-dns.com/dns-query")
+		generic.MapImplementFromMap(map[string]func(m *dns.Msg) (r *dns.Msg, err error){"https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
+			return DohClient(m, "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query")
 		}, "https://dns.alidns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
 			return DohClient(m, "https://dns.alidns.com/dns-query")
 		}}), func(dro *dns_experiment.DnsResolverOptions) {
@@ -109,8 +109,8 @@ func TestResolver4(t *testing.T) {
 func TestResolverMultipleServers77(t *testing.T) {
 	x := "hello-word-worker-cloudflare.masx200.workers.dev"
 	results, err := dns_experiment.DnsResolverMultipleServers(x,
-		generic.MapImplementFromMap(map[string]func(m *dns.Msg) (r *dns.Msg, err error){"https://cloudflare-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
-			return DohClient(m, "https://cloudflare-dns.com/dns-query")
+		generic.MapImplementFromMap(map[string]func(m *dns.Msg) (r *dns.Msg, err error){"https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
+			return DohClient(m, "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query")
 		}, "https://dns.alidns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
 			return DohClient(m, "https://dns.alidns.com/dns-query")
 		}}), func(dro *dns_experiment.DnsResolverOptions) {

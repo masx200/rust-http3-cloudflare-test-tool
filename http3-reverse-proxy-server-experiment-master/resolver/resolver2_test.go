@@ -58,8 +58,8 @@ func TestResolver37(t *testing.T) {
 	}
 }
 func GetQueryCallbacks14() generic.MapInterface[string, func(m *dns.Msg) (r *dns.Msg, err error)] {
-	return generic.MapImplementFromMap(map[string]func(m *dns.Msg) (r *dns.Msg, err error){"https://cloudflare-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
-		return DohClient(m, "https://cloudflare-dns.com/dns-query")
+	return generic.MapImplementFromMap(map[string]func(m *dns.Msg) (r *dns.Msg, err error){"https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
+		return DohClient(m, "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query")
 	}, "https://dns.alidns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {
 		return DohClient(m, "https://dns.alidns.com/dns-query")
 	}, "https://unfiltered.adguard-dns.com/dns-query": func(m *dns.Msg) (r *dns.Msg, err error) {

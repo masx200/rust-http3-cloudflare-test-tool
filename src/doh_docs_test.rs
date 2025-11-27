@@ -56,7 +56,12 @@ mod doh_docs_integration_tests {
     struct TavilySearchResult {
         title: String,
         url: String,
-        snippet: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        snippet: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        content: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        published_date: Option<String>,
     }
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -64,16 +69,16 @@ mod doh_docs_integration_tests {
         results: Vec<TavilySearchResult>,
     }
 
-    /// 执行DoH查询 (RFC 8484) - 使用正确的Google DoH JSON API
+    /// 执行DoH查询 (RFC 8484) - 使用Cloudflare DoH JSON API
     async fn perform_doh_query(domain: &str, qtype: u16) -> Result<DNSQuery> {
         let client = Client::builder()
             .timeout(Duration::from_secs(10))
             .user_agent("Rust-HTTP3-Test-Tool/1.0")
             .build()?;
 
-        // 使用Google DoH JSON API (RFC 8484 Section 6.1)
+        // 使用Cloudflare DoH JSON API (可靠且稳定)
         let doh_url = format!(
-            "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query?name={}&type={}",
+            "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query?name={}&type={}",
             urlencoding::encode(domain),
             qtype
         );
@@ -257,6 +262,13 @@ mod doh_docs_integration_tests {
                         println!("  {}. {}", i + 1, result.title);
                         println!("     📍 URL: {}", result.url);
 
+                        // 显示snippet或content（如果存在）
+                        if let Some(snippet) = &result.snippet {
+                            println!("     📝 Snippet: {}", snippet);
+                        } else if let Some(content) = &result.content {
+                            println!("     📝 Content: {}", content);
+                        }
+
                         // 验证是否为crates.io链接
                         if result.url.contains("crates.io") {
                             println!("     ✅ Valid crates.io URL");
@@ -341,7 +353,9 @@ mod doh_docs_integration_tests {
             let mock_results = vec![TavilySearchResult {
                 title: format!("{} - crates.io", crate_name),
                 url: format!("https://crates.io/crates/{}", crate_name),
-                snippet: format!("A {} crate for web development", crate_name),
+                snippet: Some(format!("A {} crate for web development", crate_name)),
+                content: None,
+                published_date: None,
             }];
 
             for result in mock_results {

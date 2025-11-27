@@ -7,7 +7,7 @@
 
      一个用于测试 Cloudflare HTTP/3 服务的 Go 语言工具，支持多种 DNS 解析方式和协议回退机制。
 
-     ## ✨ 功能特性
+## ✨ 功能特性
 
      - 🔥 **HTTP/3 支持** - 基于 QUIC 协议的最新 HTTP 协议
      - 🌐 **多协议回退** - HTTP/3 → HTTP/2 → HTTP/1.1 智能回退
@@ -18,7 +18,7 @@
      - 🛡️ **IPv4/IPv6** - 完整的双栈 IP 地址支持
      - 🎯 **IP 地址过滤** - 智能过滤无效和特定 IP 地址
 
-     ## 🚀 快速开始
+## 🚀 快速开始
 
      ### 安装依赖
 
@@ -48,7 +48,7 @@
      ./http3-test-tool -verbose
      ```
 
-     ## 📋 使用示例
+## 📋 使用示例
 
      ### 1. 基本测试
 
@@ -108,7 +108,7 @@
      ./http3-test-tool -resolve-mode "direct" -domain "example.com"
      ```
 
-     ## 📊 输出示例
+## 📊 输出示例
 
      ```json
      [
@@ -141,7 +141,7 @@
      ]
      ```
 
-     ## ⚙️ 配置选项
+## ⚙️ 配置选项
 
      ### 命令行参数
 
@@ -170,7 +170,7 @@
      }
      ```
 
-     ## 🏗️ 项目架构
+## 🏗️ 项目架构
 
      ```
      ├── main.go                    # 主程序入口
@@ -187,7 +187,7 @@
          └── main.rs               # Rust 版本实现
      ```
 
-     ## 🛠️ 开发指南
+## 🛠️ 开发指南
 
      ### 构建
 
@@ -214,7 +214,7 @@
      go run main.go -debug-pprof
      ```
 
-     ## 📚 核心组件
+## 📚 核心组件
 
      ### 1. DNS 解析引擎
      - **DoH (DNS over HTTPS)**: RFC 8484 标准实现
@@ -236,14 +236,14 @@
      - 主被动健康检查
      - 故障转移策略
 
-     ## 🔒 安全特性
+## 🔒 安全特性
 
      - ✅ **IP 地址过滤** - 自动过滤无效和恶意 IP
      - ✅ **SNI 配置** - 支持 Server Name Indication
      - ✅ **超时保护** - 防止连接挂起
      - ✅ **并发控制** - 合理的并发限制
 
-     ## 🌍 支持的协议
+## 🌍 支持的协议
 
      | 协议 | 说明 | 状态 |
      |------|------|------|
@@ -254,7 +254,7 @@
      | DoQ | DNS over QUIC | ✅ 支持 |
      | DoT | DNS over TLS | ✅ 支持 |
 
-     ## 🤝 贡献指南
+## 🤝 贡献指南
 
      我们欢迎各种形式的贡献！
 
@@ -280,18 +280,18 @@
 
      5. **创建 Pull Request**
 
-     ## 📄 许可证
+## 📄 许可证
 
      本项目采用 [MIT 许可证](LICENSE)。
 
-     ## 🙏 致谢
+## 🙏 致谢
 
      - [quic-go](https://github.com/quic-go/quic-go) - QUIC 协议 Go 实现
      - [miekg/dns](https://github.com/miekg/dns) - DNS 库
      - [gin-gonic](https://github.com/gin-gonic/gin) - HTTP Web 框架
      - [Cloudflare](https://www.cloudflare.com/) - HTTP/3 服务支持
 
-     ## 📞 联系方式
+## 📞 联系方式
 
      - 项目主页: [Gitee](https://gitee.com/masx200/golang-http3-cloudflare-test-tool)
      - 问题反馈: [Issues](https://gitee.com/masx200/golang-http3-cloudflare-test-tool/issues)
