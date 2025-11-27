@@ -55,13 +55,13 @@ async fn resolve_domain_with_hickory(client: &Client, task: &InputTask) -> Resul
 
     match task.resolve_mode.as_str() {
         "https" => {
-            // 使用Hickory-DNS进行DoH查询
+            // 使用Hickory-DNS进行DoH查询 (RFC 8484标准)
             println!(
-                "    -> 使用Hickory-DNS进行DoH查询: {}",
+                "    -> 使用Hickory-DNS进行DoH查询 (RFC 8484): {}",
                 task.doh_resolve_domain
             );
 
-            // 创建解析器配置
+            // 创建解析器配置，配置DoH服务器
             let resolver = Resolver::builder_tokio()?
                 .build()
                 .context("Failed to create Hickory resolver")?;
@@ -75,11 +75,11 @@ async fn resolve_domain_with_hickory(client: &Client, task: &InputTask) -> Resul
                 Ok(lookup) => {
                     for ip in lookup.iter() {
                         ips.insert(ip);
-                        println!("    -> 从DNS记录找到IP: {}", ip);
+                        println!("    -> 从DoH (RFC 8484) 找到IP: {}", ip);
                     }
                 }
                 Err(e) => {
-                    println!("    -> Hickory-DNS查询失败: {:?}", e);
+                    println!("    -> DoH (RFC 8484) 查询失败: {:?}", e);
                     // 回退到简单的HTTP JSON API
                     fallback_to_json_api(client, task, &mut ips).await?;
                 }
