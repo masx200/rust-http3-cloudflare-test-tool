@@ -1,18 +1,16 @@
 // Simplified version - focuses on basic DNS resolution and HTTP connection testing
-// Now using local Hickory-DNS and Reqwest libraries
+// Now using RFC 8484 DNS over HTTPS (DoH) and Reqwest libraries
 use anyhow::{Context, Result};
-use hickory_resolver::{
-    // config::{NameServerConfig, ResolverConfig},
-    Name,
-    Resolver,
-};
+use base64::{engine::general_purpose, Engine as _};
 use reqwest::Client;
-// use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::time::Instant;
+use trust_dns_proto::op::{Message, Query};
+use trust_dns_proto::rr::{Name, RecordType};
+use trust_dns_proto::serialize::binary::BinEncodable;
 
 // Include DoH and Docs.rs integration tests
 #[cfg(test)]
@@ -49,7 +47,7 @@ struct TestResult {
     dns_source: String,
 }
 
-// --- 3. 使用Hickory-DNS进行DNS解析 (支持DoH和RFC 8484) ---
+// --- 3. RFC 8484 DNS over HTTPS (DoH) 实现 ---
 // 添加缺失的IPv4地址验证函数
 fn is_valid_ipv4_address(ip_str: &str) -> bool {
     match ip_str {
@@ -78,7 +76,95 @@ fn is_bad_ipv4_address(ip_str: &str) -> bool {
     ip_str == "183.192.65.101" // 明确标记这个IP为错误
 }
 
-async fn resolve_domain_with_hickory(client: &Client, task: &InputTask) -> Result<Vec<IpAddr>> {
+// RFC 8484 DNS over HTTPS 查询函数
+async fn query_dns_over_https(
+    client: &Client,
+    domain: &str,
+    record_type: RecordType,
+    doh_url: &str,
+) -> Result<Vec<IpAddr>> {
+    // 创建 DNS 查询
+    let name = Name::from_ascii(domain).context("Failed to parse domain name")?;
+    let query = Query::query(name, record_type);
+
+    // 创建 DNS 消息
+    let mut message = Message::new();
+    message.set_id(0); // RFC 8484 建议使用 ID 为 0 以提高缓存效率
+    message.set_recursion_desired(true);
+    message.add_query(query);
+
+    // 序列化 DNS 查询
+    let mut request_bytes = Vec::new();
+    {
+        let mut encoder =
+            trust_dns_proto::serialize::binary::BinEncoder::new(&mut request_bytes);
+        message
+            .emit(&mut encoder)
+            .context("Failed to serialize DNS query")?;
+    }
+
+    // 使用 base64url 编码（不包含填充）
+    let encoded_query = general_purpose::URL_SAFE_NO_PAD.encode(&request_bytes);
+
+    // 构建 DoH 请求 URL
+    let url = format!("{}?dns={}", doh_url, encoded_query);
+
+    // 发送 HTTPS GET 请求
+    let response = client
+        .get(&url)
+        .header("Accept", "application/dns-message")
+        .send()
+        .await
+        .context("Failed to send DoH request")?;
+
+    // 检查响应状态
+    if response.status() != reqwest::StatusCode::OK {
+        return Err(anyhow::anyhow!(
+            "DoH server returned non-200 status: {}",
+            response.status()
+        ));
+    }
+
+    // 获取响应体
+    let response_bytes = response
+        .bytes()
+        .await
+        .context("Failed to read response body")?;
+
+    // 解析 DNS 响应
+    let dns_response =
+        Message::from_vec(&response_bytes).context("Failed to parse DNS response")?;
+
+    // 提取 IP 地址
+    let mut ip_addresses = Vec::new();
+    let answers = dns_response.answers();
+
+    if !answers.is_empty() {
+        for record in answers {
+            if record.record_type() == record_type {
+                if let Some(rdata) = record.data() {
+                    match record.record_type() {
+                        RecordType::A => {
+                            if let trust_dns_proto::rr::RData::A(ipv4) = rdata {
+                                ip_addresses.push(IpAddr::V4(*ipv4));
+                            }
+                        }
+                        RecordType::AAAA => {
+                            if let trust_dns_proto::rr::RData::AAAA(ipv6) = rdata {
+                                ip_addresses.push(IpAddr::V6(*ipv6));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(ip_addresses)
+}
+
+async fn resolve_domain_with_rfc8484(client: &Client, task: &InputTask) -> Result<Vec<IpAddr>> {
     let mut ips = HashSet::new();
 
     if let Some(direct_ips) = &task.direct_ips {
@@ -93,68 +179,68 @@ async fn resolve_domain_with_hickory(client: &Client, task: &InputTask) -> Resul
 
     match task.resolve_mode.as_str() {
         "https" => {
-            // 使用Hickory-DNS进行DoH查询 (RFC 8484标准)
+            // 使用 RFC 8484 标准的 DoH 查询
             println!(
-                "    -> 使用Hickory-DNS进行DoH查询 (RFC 8484): {}",
+                "    -> 使用 RFC 8484 DoH 查询: {}",
                 task.doh_resolve_domain
             );
 
-            // 首先尝试使用指定的DoH URL
-            match fallback_to_json_api(client, task, &mut ips).await {
-                Ok(()) => {
-                    if ips.is_empty() {
-                        println!("    -> DoH JSON API未返回结果，尝试默认解析器...");
-                        // 回退到默认解析器
-                        let resolver = Resolver::builder_tokio()?
-                            .build()
-                            .context("Failed to create basic Hickory resolver")?;
+            // 查询 A 记录 (IPv4)
+            match query_dns_over_https(client, &task.doh_resolve_domain, RecordType::A, &task.doh_url).await {
+                Ok(mut ipv4_addresses) => {
+                    ipv4_addresses.retain(|ip| {
+                        let ip_str = ip.to_string();
+                        is_valid_ipv4_address(&ip_str) && !is_bad_ipv4_address(&ip_str)
+                    });
 
-                        let name = Name::from_ascii(&task.doh_resolve_domain)
-                            .context("Failed to parse domain name")?;
+                    for ip in &ipv4_addresses {
+                        ips.insert(*ip);
+                        println!("    -> 从 RFC 8484 DoH 找到 IPv4: {}", ip);
+                    }
+
+                    // 查询 AAAA 记录 (IPv6)
+                    match query_dns_over_https(client, &task.doh_resolve_domain, RecordType::AAAA, &task.doh_url).await {
+                        Ok(ipv6_addresses) => {
+                            for ip in &ipv6_addresses {
+                                ips.insert(*ip);
+                                println!("    -> 从 RFC 8484 DoH 找到 IPv6: {}", ip);
+                            }
+                        }
+                        Err(e) => {
+                            println!("    -> RFC 8484 DoH IPv6 查询失败: {:?}", e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("    -> RFC 8484 DoH IPv4 查询失败: {}", e);
+
+                    // 回退到传统 DNS 查询
+                    if let Ok(name) = Name::from_ascii(&task.doh_resolve_domain) {
+                        let resolver = hickory_resolver::Resolver::builder_tokio()?
+                            .build()
+                            .context("Failed to create basic resolver")?;
 
                         match resolver.lookup_ip(name).await {
                             Ok(lookup) => {
                                 for ip in lookup.iter() {
                                     ips.insert(ip);
-                                    println!("    -> 从默认解析器找到IP: {}", ip);
+                                    println!("    -> 从回退解析器找到IP: {}", ip);
                                 }
                             }
                             Err(e) => {
-                                println!("    -> 默认解析器也失败: {:?}", e);
+                                println!("    -> 回退解析器也失败: {:?}", e);
                             }
-                        }
-                    }
-                }
-                Err(e) => {
-                    println!("    -> DoH JSON API失败: {}, 尝试默认解析器...", e);
-                    // 回退到默认解析器
-                    let resolver = Resolver::builder_tokio()?
-                        .build()
-                        .context("Failed to create basic Hickory resolver")?;
-
-                    let name = Name::from_ascii(&task.doh_resolve_domain)
-                        .context("Failed to parse domain name")?;
-
-                    match resolver.lookup_ip(name).await {
-                        Ok(lookup) => {
-                            for ip in lookup.iter() {
-                                ips.insert(ip);
-                                println!("    -> 从默认解析器找到IP: {}", ip);
-                            }
-                        }
-                        Err(e) => {
-                            println!("    -> 默认解析器也失败: {:?}", e);
                         }
                     }
                 }
             }
         }
         "a_aaaa" => {
-            // 直接A/AAAA记录查询
+            // 传统 DNS 查询
             println!("    -> 使用传统DNS查询: {}", task.doh_resolve_domain);
-            let resolver = Resolver::builder_tokio()?
+            let resolver = hickory_resolver::Resolver::builder_tokio()?
                 .build()
-                .context("Failed to create Hickory resolver")?;
+                .context("Failed to create resolver")?;
 
             let name = Name::from_ascii(&task.doh_resolve_domain)
                 .context("Failed to parse domain name")?;
@@ -163,12 +249,37 @@ async fn resolve_domain_with_hickory(client: &Client, task: &InputTask) -> Resul
                 Ok(lookup) => {
                     for ip in lookup.iter() {
                         ips.insert(ip);
-                        println!("    -> 从A/AAAA记录找到IP: {}", ip);
+                        println!("    -> 从传统DNS找到IP: {}", ip);
                     }
                 }
                 Err(e) => {
                     println!("    -> 传统DNS查询失败: {:?}", e);
-                    fallback_to_json_api(client, task, &mut ips).await?;
+
+                    // 尝试 DoH 作为最后手段
+                    match query_dns_over_https(client, &task.doh_resolve_domain, RecordType::A, &task.doh_url).await {
+                        Ok(mut ipv4_addresses) => {
+                            ipv4_addresses.retain(|ip| {
+                                let ip_str = ip.to_string();
+                                is_valid_ipv4_address(&ip_str) && !is_bad_ipv4_address(&ip_str)
+                            });
+
+                            for ip in &ipv4_addresses {
+                                ips.insert(*ip);
+                                println!("    -> 从回退DoH找到 IPv4: {}", ip);
+                            }
+                        }
+                        Err(_) => {}
+                    }
+
+                    match query_dns_over_https(client, &task.doh_resolve_domain, RecordType::AAAA, &task.doh_url).await {
+                        Ok(ipv6_addresses) => {
+                            for ip in &ipv6_addresses {
+                                ips.insert(*ip);
+                                println!("    -> 从回退DoH找到 IPv6: {}", ip);
+                            }
+                        }
+                        Err(_) => {}
+                    }
                 }
             }
         }
