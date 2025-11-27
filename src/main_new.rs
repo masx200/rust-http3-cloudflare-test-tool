@@ -407,7 +407,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "cloudflare.com",
             "test_sni_host": "cloudflare.com",
             "test_host_header": "cloudflare.com",
-            "doh_url": "https://cloudflare-dns.com/dns-query",
+            "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": true,
             "resolve_mode": "https"
@@ -416,7 +416,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "dash.cloudflare.com",
             "test_sni_host": "dash.cloudflare.com",
             "test_host_header": "dash.cloudflare.com",
-            "doh_url": "https://dns.google/resolve",
+            "doh_url": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
             "resolve_mode": "https"
