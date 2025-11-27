@@ -134,6 +134,7 @@ func getDefaultTasks() []InputTask {
 			TestHostHeader:  "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
 			DohURL:          "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
 			Port:            443,
+			PreferIPv6:      getBoolPtr(true),
 			ResolveMode:     "https",
 		},
 		{
@@ -142,6 +143,7 @@ func getDefaultTasks() []InputTask {
 			TestHostHeader:  "speed.cloudflare.com",
 			DohURL:          "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
 			Port:            443,
+			PreferIPv6:      getBoolPtr(true),
 			ResolveMode:     "https",
 		},
 		{
@@ -150,10 +152,16 @@ func getDefaultTasks() []InputTask {
 			TestHostHeader:  "speed.cloudflare.com",
 			DohURL:          "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/dns.google/dns-query",
 			Port:            443,
-			DirectIPs:       []string{"162.159.140.220", "172.67.214.232"},
+			PreferIPv6:      getBoolPtr(true),
+			DirectIPs:       []string{"162.159.140.220", "172.67.214.232", "2606:4700:7::da", "2a06:98c1:58::da"},
 			ResolveMode:     "direct",
 		},
 	}
+}
+
+// 辅助函数：获取bool指针
+func getBoolPtr(b bool) *bool {
+	return &b
 }
 
 // 运行所有测试
@@ -223,8 +231,8 @@ func resolveDomain(task *InputTask) ([]string, error) {
 
 	switch task.ResolveMode {
 	case "https":
-		// 使用DoH (RFC 8484标准)
-		fmt.Printf("    -> 使用DoH查询 (RFC 8484): %s\n", task.DohResolveDomain)
+		// 使用DoH (RFC 8484标准) - 同时查询IPv4和IPv6记录
+		fmt.Printf("    -> 使用DoH查询 (RFC 8484) - 同时查询IPv4和IPv6: %s\n", task.DohResolveDomain)
 		return dohLookup(task.DohResolveDomain, task.DohURL)
 	case "a_aaaa":
 		// 传统A/AAAA记录查询
@@ -238,28 +246,51 @@ func resolveDomain(task *InputTask) ([]string, error) {
 	}
 }
 
-// DoH查询
+// DoH查询 - 同时查询A和AAAA记录以支持IPv4和IPv6
 func dohLookup(domain, dohURL string) ([]string, error) {
-	msg := new(dns.Msg)
-	msg.SetQuestion(dns.Fqdn(domain), dns.TypeA)
+	var allIPs []string
 
-	// 首先尝试A记录
-	ips, err := performDoHQuery(msg, dohURL)
-	if err != nil {
-		fmt.Printf("    -> DoH查询A记录失败: %v\n", err)
-	} else if len(ips) > 0 {
-		return ips, nil
-	}
+	// 并发查询A和AAAA记录以提升性能
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 
-	// 如果A记录没有结果，尝试AAAA记录
-	msg.SetQuestion(dns.Fqdn(domain), dns.TypeAAAA)
-	ips, err = performDoHQuery(msg, dohURL)
-	if err != nil {
-		fmt.Printf("    -> DoH查询AAAA记录失败: %v\n", err)
-		return nil, err
-	}
+	// 查询A记录 (IPv4)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		msg := new(dns.Msg)
+		msg.SetQuestion(dns.Fqdn(domain), dns.TypeA)
 
-	return ips, nil
+		ips, err := performDoHQuery(msg, dohURL)
+		if err != nil && *verbose {
+			fmt.Printf("    -> DoH查询A记录失败: %v\n", err)
+		} else if len(ips) > 0 {
+			mu.Lock()
+			allIPs = append(allIPs, ips...)
+			mu.Unlock()
+		}
+	}()
+
+	// 查询AAAA记录 (IPv6)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		msg := new(dns.Msg)
+		msg.SetQuestion(dns.Fqdn(domain), dns.TypeAAAA)
+
+		ips, err := performDoHQuery(msg, dohURL)
+		if err != nil && *verbose {
+			fmt.Printf("    -> DoH查询AAAA记录失败: %v\n", err)
+		} else if len(ips) > 0 {
+			mu.Lock()
+			allIPs = append(allIPs, ips...)
+			mu.Unlock()
+		}
+	}()
+
+	wg.Wait()
+
+	return filterValidIPs(allIPs), nil
 }
 
 // 执行DoH查询 - 使用实验库
