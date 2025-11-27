@@ -61,28 +61,53 @@ async fn resolve_domain_with_hickory(client: &Client, task: &InputTask) -> Resul
                 task.doh_resolve_domain
             );
 
-            // 尝试使用Hickory-DNS的内置DoH支持
-            // 首先创建默认解析器，然后手动配置DoH
-            let resolver = Resolver::builder_tokio()?
-                .build()
-                .context("Failed to create basic Hickory resolver")?;
+            // 首先尝试使用指定的DoH URL
+            match fallback_to_json_api(client, task, &mut ips).await {
+                Ok(()) => {
+                    if ips.is_empty() {
+                        println!("    -> DoH JSON API未返回结果，尝试默认解析器...");
+                        // 回退到默认解析器
+                        let resolver = Resolver::builder_tokio()?
+                            .build()
+                            .context("Failed to create basic Hickory resolver")?;
 
-            // 解析域名为Name
-            let name = Name::from_ascii(&task.doh_resolve_domain)
-                .context("Failed to parse domain name")?;
+                        let name = Name::from_ascii(&task.doh_resolve_domain)
+                            .context("Failed to parse domain name")?;
 
-            // 执行DNS查询 - 这应该使用系统配置或Hickory内置的DoH
-            match resolver.lookup_ip(name).await {
-                Ok(lookup) => {
-                    for ip in lookup.iter() {
-                        ips.insert(ip);
-                        println!("    -> 从Hickory-DNS找到IP: {}", ip);
+                        match resolver.lookup_ip(name).await {
+                            Ok(lookup) => {
+                                for ip in lookup.iter() {
+                                    ips.insert(ip);
+                                    println!("    -> 从默认解析器找到IP: {}", ip);
+                                }
+                            }
+                            Err(e) => {
+                                println!("    -> 默认解析器也失败: {:?}", e);
+                            }
+                        }
                     }
                 }
                 Err(e) => {
-                    println!("    -> Hickory-DNS查询失败: {:?}", e);
-                    // 回退到简单的HTTP JSON API
-                    fallback_to_json_api(client, task, &mut ips).await?;
+                    println!("    -> DoH JSON API失败: {}, 尝试默认解析器...", e);
+                    // 回退到默认解析器
+                    let resolver = Resolver::builder_tokio()?
+                        .build()
+                        .context("Failed to create basic Hickory resolver")?;
+
+                    let name = Name::from_ascii(&task.doh_resolve_domain)
+                        .context("Failed to parse domain name")?;
+
+                    match resolver.lookup_ip(name).await {
+                        Ok(lookup) => {
+                            for ip in lookup.iter() {
+                                ips.insert(ip);
+                                println!("    -> 从默认解析器找到IP: {}", ip);
+                            }
+                        }
+                        Err(e) => {
+                            println!("    -> 默认解析器也失败: {:?}", e);
+                        }
+                    }
                 }
             }
         }
@@ -272,7 +297,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
             "test_sni_host": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
             "test_host_header": "hello-world-deno-deploy.a1u06h9fe9y5bozbmgz3.qzz.io",
-            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/security.cloudflare-dns.com/dns-query",
+            "doh_url": "https://security.cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": null,
             "resolve_mode": "https"
@@ -281,7 +306,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "speed.cloudflare.com",
             "test_sni_host": "speed.cloudflare.com",
             "test_host_header": "speed.cloudflare.com",
-            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/security.cloudflare-dns.com/dns-query",
+            "doh_url": "https://security.cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
             "resolve_mode": "https"
@@ -290,7 +315,7 @@ async fn main() -> Result<()> {
             "doh_resolve_domain": "speed.cloudflare.com",
             "test_sni_host": "speed.cloudflare.com",
             "test_host_header": "speed.cloudflare.com",
-            "doh_url": "https://fresh-reverse-proxy-middle.masx201.dpdns.org/token/4yF6nSCifSLs8lfkb4t8OWP69kfpgiun/https/security.cloudflare-dns.com/dns-query",
+            "doh_url": "https://security.cloudflare-dns.com/dns-query",
             "port": 443,
             "prefer_ipv6": false,
             "direct_ips": ["162.159.140.220", "172.67.214.232"],
