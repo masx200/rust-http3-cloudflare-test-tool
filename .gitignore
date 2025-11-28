@@ -9,3 +9,4 @@ server.log
 http3-test-tool.exe
 .vscode/settings.json
 target/doc
+host_check
