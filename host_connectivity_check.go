@@ -23,36 +23,47 @@ type HostEntry struct {
 }
 
 type TestResult struct {
-	Host        string  `json:"host"`
-	TargetIP    string  `json:"target_ip"`
-	IPVersion   string  `json:"ip_version"`
-	Success     bool    `json:"success"`
-	StatusCode  *uint16 `json:"status_code"`
-	Protocol    string  `json:"protocol"`
-	LatencyMs   *uint64 `json:"latency_ms"`
+	Host         string  `json:"host"`
+	TargetIP     string  `json:"target_ip"`
+	IPVersion    string  `json:"ip_version"`
+	Success      bool    `json:"success"`
+	StatusCode   *uint16 `json:"status_code"`
+	Protocol     string  `json:"protocol"`
+	LatencyMs    *uint64 `json:"latency_ms"`
 	ServerHeader *string `json:"server_header"`
 	ErrorMessage *string `json:"error_msg"`
 }
 
 // 全局配置
 var (
-	verbose = flag.Bool("verbose", false, "详细输出")
+	verbose     = flag.Bool("verbose", false, "详细输出")
 	concurrency = flag.Int("concurrency", 10, "并发测试数量")
-	timeout = flag.Int("timeout", 10, "超时时间(秒)")
+	timeout     = flag.Int("timeout", 10, "超时时间(秒)")
+	inputFile   = flag.String("input", "hosts.json", "输入文件路径")
 )
 
 var (
-	dohURL = "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query"
+	dohURL      = "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query"
 	defaultPort = 443
 )
 
 func main() {
 	flag.Parse()
 
-	// 读取hosts.json
-	hosts, err := loadHosts("hosts.json")
+	// 显示使用说明
+	if len(os.Args) == 1 {
+		fmt.Fprintf(os.Stderr, "使用方法: %s [选项]\n", os.Args[0])
+		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\n示例:\n")
+		fmt.Fprintf(os.Stderr, "  %s -verbose -input custom_hosts.json\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s -concurrency 20 -timeout 15\n", os.Args[0])
+		os.Exit(1)
+	}
+
+	// 读取hosts文件
+	hosts, err := loadHosts(*inputFile)
 	if err != nil {
-		log.Fatalf("加载hosts.json失败: %v", err)
+		log.Fatalf("加载hosts文件失败: %v", err)
 	}
 
 	fmt.Printf("成功加载 %d 个host，开始测试连通性...\n", len(hosts))
@@ -66,9 +77,24 @@ func main() {
 	}
 
 	fmt.Printf("\n测试完成！结果已保存到 connectivity_results.json\n")
-	fmt.Printf("成功: %d, 失败: %d\n",
-		len(filterResults(results, true)),
-		len(filterResults(results, false)))
+
+	// 统计结果
+	successResults := filterResults(results, true)
+	failedResults := filterResults(results, false)
+
+	// 统计每个host的成功情况
+	hostStats := make(map[string]int)
+	successHosts := make(map[string]bool)
+
+	for _, result := range results {
+		hostStats[result.Host]++
+		if result.Success {
+			successHosts[result.Host] = true
+		}
+	}
+
+	fmt.Printf("总测试次数: %d (成功: %d, 失败: %d)\n", len(results), len(successResults), len(failedResults))
+	fmt.Printf("测试主机数: %d (至少一个IP成功: %d)\n", len(hostStats), len(successHosts))
 }
 
 // 加载hosts.json文件
@@ -94,12 +120,13 @@ func loadHosts(filename string) ([]string, error) {
 // 测试所有host的连通性
 func testHostsConnectivity(hosts []string) []TestResult {
 	var wg sync.WaitGroup
-	results := make([]TestResult, len(hosts))
+	var mu sync.Mutex
+	var allResults []TestResult
 	sem := make(chan struct{}, *concurrency)
 
-	for i, host := range hosts {
+	for _, host := range hosts {
 		wg.Add(1)
-		go func(index int, host string) {
+		go func(host string) {
 			sem <- struct{}{}
 			defer func() {
 				<-sem
@@ -110,25 +137,29 @@ func testHostsConnectivity(hosts []string) []TestResult {
 				fmt.Printf("测试 %s...\n", host)
 			}
 
-			results[index] = testSingleHost(host)
-		}(i, host)
+			hostResults := testSingleHost(host)
+
+			mu.Lock()
+			allResults = append(allResults, hostResults...)
+			mu.Unlock()
+		}(host)
 	}
 
 	wg.Wait()
-	return results
+	return allResults
 }
 
 // 测试单个host的连通性
-func testSingleHost(host string) TestResult {
+func testSingleHost(host string) []TestResult {
 	// 判断是否为IP地址
 	isIP := isIPAddress(host)
 
-	var targetIP string
+	var targetIPs []string
 	var err error
 
 	if isIP {
 		// 如果是IP，直接使用
-		targetIP = host
+		targetIPs = []string{host}
 		if *verbose {
 			fmt.Printf("  %s 是IP地址，直接使用\n", host)
 		}
@@ -137,64 +168,78 @@ func testSingleHost(host string) TestResult {
 		if *verbose {
 			fmt.Printf("  %s 是域名，进行DoH解析...\n", host)
 		}
-		targetIPs, err := dohLookup(host, dohURL)
+		targetIPs, err = dohLookup(host, dohURL)
 		if err != nil {
-			return TestResult{
-				Host:        host,
-				Success:     false,
+			return []TestResult{{
+				Host:         host,
+				Success:      false,
 				ErrorMessage: stringPtr(fmt.Sprintf("DNS解析失败: %v", err)),
-			}
+			}}
 		}
 		if len(targetIPs) == 0 {
-			return TestResult{
-				Host:        host,
-				Success:     false,
+			return []TestResult{{
+				Host:         host,
+				Success:      false,
 				ErrorMessage: stringPtr("DNS解析无结果"),
+			}}
+		}
+		if *verbose {
+			fmt.Printf("  解析到 %d 个IP: %v\n", len(targetIPs), targetIPs)
+		}
+	}
+
+	// 为每个IP创建测试结果
+	results := make([]TestResult, len(targetIPs))
+	for i, targetIP := range targetIPs {
+		// 构建测试URL
+		testURL := fmt.Sprintf("https://%s:%d/", host, defaultPort)
+
+		// 测试HTTP/3连接
+		success, protocol, statusCode, serverHeader, latencyMs, err := testHTTP3Connection(
+			testURL, host, targetIP, defaultPort, *timeout)
+
+		if err != nil {
+			if *verbose {
+				fmt.Printf("  IP %s HTTP/3失败: %v，尝试HTTP/2...\n", targetIP, err)
+			}
+			// 回退到HTTP/2
+			success, protocol, statusCode, serverHeader, latencyMs, err = testHTTP2Connection(
+				testURL, host, targetIP, defaultPort, *timeout)
+		}
+
+		ipVersion := "IPv4"
+		if strings.Contains(targetIP, ":") {
+			ipVersion = "IPv6"
+		}
+
+		result := TestResult{
+			Host:      host,
+			TargetIP:  targetIP,
+			IPVersion: ipVersion,
+			Success:   success,
+			Protocol:  protocol,
+			LatencyMs: uint64Ptr(latencyMs),
+		}
+
+		if err != nil {
+			result.ErrorMessage = stringPtr(err.Error())
+		} else {
+			result.StatusCode = uint16Ptr(statusCode)
+			result.ServerHeader = stringPtr(serverHeader)
+		}
+
+		results[i] = result
+
+		if *verbose {
+			if success {
+				fmt.Printf("  IP %s 测试成功 (%s, %dms)\n", targetIP, protocol, latencyMs)
+			} else {
+				fmt.Printf("  IP %s 测试失败\n", targetIP)
 			}
 		}
-		targetIP = targetIPs[0]
-		if *verbose {
-			fmt.Printf("  解析到IP: %s\n", targetIP)
-		}
 	}
 
-	// 构建测试URL
-	testURL := fmt.Sprintf("https://%s:%d/", host, defaultPort)
-
-	// 测试HTTP/3连接
-	success, protocol, statusCode, serverHeader, latencyMs, err := testHTTP3Connection(
-		testURL, host, targetIP, defaultPort, *timeout)
-
-	if err != nil {
-		if *verbose {
-			fmt.Printf("  HTTP/3失败: %v，尝试HTTP/2...\n", err)
-		}
-		// 回退到HTTP/2
-		success, protocol, statusCode, serverHeader, latencyMs, err = testHTTP2Connection(
-			testURL, host, targetIP, defaultPort, *timeout)
-	}
-
-	result := TestResult{
-		Host:        host,
-		TargetIP:    targetIP,
-		IPVersion:   "IPv4",
-		Success:     success,
-		Protocol:    protocol,
-		LatencyMs:   uint64Ptr(latencyMs),
-	}
-
-	if strings.Contains(targetIP, ":") {
-		result.IPVersion = "IPv6"
-	}
-
-	if err != nil {
-		result.ErrorMessage = stringPtr(err.Error())
-	} else {
-		result.StatusCode = uint16Ptr(statusCode)
-		result.ServerHeader = stringPtr(serverHeader)
-	}
-
-	return result
+	return results
 }
 
 // 判断是否为IP地址
@@ -205,26 +250,38 @@ func isIPAddress(host string) bool {
 
 // DoH查询
 func dohLookup(domain, dohURL string) ([]string, error) {
+	var allIPs []string
+
+	// 查询A记录
 	msg := new(dns.Msg)
 	msg.SetQuestion(dns.Fqdn(domain), dns.TypeA)
-
-	// 首先尝试A记录
-	ips, err := performDoHQuery(msg, dohURL)
-	if err != nil {
+	aIPs, err := performDoHQuery(msg, dohURL)
+	if err != nil && *verbose {
 		fmt.Printf("  DoH查询A记录失败: %v\n", err)
-	} else if len(ips) > 0 {
-		return ips, nil
+	} else if len(aIPs) > 0 {
+		allIPs = append(allIPs, aIPs...)
+		if *verbose {
+			fmt.Printf("  查询到A记录: %v\n", aIPs)
+		}
 	}
 
-	// 如果A记录没有结果，尝试AAAA记录
+	// 查询AAAA记录
 	msg.SetQuestion(dns.Fqdn(domain), dns.TypeAAAA)
-	ips, err = performDoHQuery(msg, dohURL)
-	if err != nil {
+	aaaaIPs, err := performDoHQuery(msg, dohURL)
+	if err != nil && *verbose {
 		fmt.Printf("  DoH查询AAAA记录失败: %v\n", err)
+	} else if len(aaaaIPs) > 0 {
+		allIPs = append(allIPs, aaaaIPs...)
+		if *verbose {
+			fmt.Printf("  查询到AAAA记录: %v\n", aaaaIPs)
+		}
+	}
+
+	if len(allIPs) == 0 && err != nil {
 		return nil, err
 	}
 
-	return ips, nil
+	return allIPs, nil
 }
 
 // 执行DoH查询
