@@ -9,14 +9,14 @@
 
 ## ✨ 功能特性
 
-     - 🔥 **HTTP/3 支持** - 基于 QUIC 协议的最新 HTTP 协议
-     - 🌐 **多协议回退** - HTTP/3 → HTTP/2 → HTTP/1.1 智能回退
-     - 🔍 **多种 DNS 解析** - DoH、DoQ、DoT、传统 DNS 支持
-     - ⚡ **并发测试** - 多 IP 地址并发连接测试
-     - 📊 **详细报告** - JSON 格式的详细测试结果
-     - ⚙️ **灵活配置** - 支持配置文件和命令行参数
-     - 🛡️ **IPv4/IPv6** - 完整的双栈 IP 地址支持
-     - 🎯 **IP 地址过滤** - 智能过滤无效和特定 IP 地址
+    - 🔥 **HTTP/3 支持** - 基于 QUIC 协议的最新 HTTP 协议
+    - 🌐 **多协议回退** - HTTP/3 → HTTP/2 → HTTP/1.1 智能回退
+    - 🔍 **多种 DNS 解析** - DoH、DoQ、DoT、传统 DNS 支持
+    - ⚡ **并发测试** - 多 IP 地址并发连接测试
+    - 📊 **详细报告** - JSON 格式的详细测试结果
+    - ⚙️ **灵活配置** - 支持配置文件和命令行参数
+    - 🛡️ **IPv4/IPv6** - 完整的双栈 IP 地址支持
+    - 🎯 **IP 地址过滤** - 智能过滤无效和特定 IP 地址
 
 ## 🚀 快速开始
 
@@ -110,36 +110,36 @@
 
 ## 📊 输出示例
 
-     ```json
-     [
-       {
-         "domain_used": "local-aria2-webui.masx200.ddns-ip.net",
-         "target_ip": "162.159.140.220",
-         "ip_version": "IPv4",
-         "sni_host": "local-aria2-webui.masx200.ddns-ip.net",
-         "host_header": "local-aria2-webui.masx200.ddns-ip.net",
-         "success": true,
-         "status_code": 200,
-         "protocol": "h3",
-         "latency_ms": 127,
-         "server_header": "cloudflare",
-         "dns_source": "DoH (https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query)"
-       },
-       {
-         "domain_used": "local-aria2-webui.masx200.ddns-ip.net",
-         "target_ip": "2606:4700:d0::a29f:4801",
-         "ip_version": "IPv6",
-         "sni_host": "local-aria2-webui.masx200.ddns-ip.net",
-         "host_header": "local-aria2-webui.masx200.ddns-ip.net",
-         "success": true,
-         "status_code": 200,
-         "protocol": "h2",
-         "latency_ms": 156,
-         "server_header": "cloudflare",
-         "dns_source": "DoH (https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query)"
-       }
-     ]
-     ```
+    ```json
+    [
+      {
+        "domain_used": "local-aria2-webui.masx200.ddns-ip.net",
+        "target_ip": "162.159.140.220",
+        "ip_version": "IPv4",
+        "sni_host": "local-aria2-webui.masx200.ddns-ip.net",
+        "host_header": "local-aria2-webui.masx200.ddns-ip.net",
+        "success": true,
+        "status_code": 200,
+        "protocol": "h3",
+        "latency_ms": 127,
+        "server_header": "cloudflare",
+        "dns_source": "DoH (https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query)"
+      },
+      {
+        "domain_used": "local-aria2-webui.masx200.ddns-ip.net",
+        "target_ip": "2606:4700:d0::a29f:4801",
+        "ip_version": "IPv6",
+        "sni_host": "local-aria2-webui.masx200.ddns-ip.net",
+        "host_header": "local-aria2-webui.masx200.ddns-ip.net",
+        "success": true,
+        "status_code": 200,
+        "protocol": "h2",
+        "latency_ms": 156,
+        "server_header": "cloudflare",
+        "dns_source": "DoH (https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query)"
+      }
+    ]
+    ```
 
 ## ⚙️ 配置选项
 
@@ -172,20 +172,20 @@
 
 ## 🏗️ 项目架构
 
-     ```
-     ├── main.go                    # 主程序入口
-     ├── config.json                # 配置文件示例
-     ├── go.mod                     # Go 模块定义
-     ├── README.md                  # 项目文档
-     ├── CLAUDE.md                  # Claude 开发指南
-     ├── http3-reverse-proxy-server-experiment/  # HTTP/3 实验库
-     │   ├── h3/                    # HTTP/3 实现
-     │   ├── dns/                   # DNS 解析服务
-     │   ├── load_balance/          # 负载均衡
-     │   └── adapter/               # 协议适配器
-     └── src/                       # 原始 Rust 代码（参考）
-         └── main.rs               # Rust 版本实现
-     ```
+    ```
+    ├── main.go                    # 主程序入口
+    ├── config.json                # 配置文件示例
+    ├── go.mod                     # Go 模块定义
+    ├── README.md                  # 项目文档
+    ├── CLAUDE.md                  # Claude 开发指南
+    ├── http3-reverse-proxy-server-experiment/  # HTTP/3 实验库
+    │   ├── h3/                    # HTTP/3 实现
+    │   ├── dns/                   # DNS 解析服务
+    │   ├── load_balance/          # 负载均衡
+    │   └── adapter/               # 协议适配器
+    └── src/                       # 原始 Rust 代码（参考）
+        └── main.rs               # Rust 版本实现
+    ```
 
 ## 🛠️ 开发指南
 
@@ -238,21 +238,21 @@
 
 ## 🔒 安全特性
 
-     - ✅ **IP 地址过滤** - 自动过滤无效和恶意 IP
-     - ✅ **SNI 配置** - 支持 Server Name Indication
-     - ✅ **超时保护** - 防止连接挂起
-     - ✅ **并发控制** - 合理的并发限制
+    - ✅ **IP 地址过滤** - 自动过滤无效和恶意 IP
+    - ✅ **SNI 配置** - 支持 Server Name Indication
+    - ✅ **超时保护** - 防止连接挂起
+    - ✅ **并发控制** - 合理的并发限制
 
 ## 🌍 支持的协议
 
-     | 协议 | 说明 | 状态 |
-     |------|------|------|
-     | HTTP/3 | 基于 QUIC 的下一代 HTTP | ✅ 支持 |
-     | HTTP/2 | 二进制帧协议 | ✅ 支持 |
-     | HTTP/1.1 | 传统文本协议 | ✅ 支持 |
-     | DoH | DNS over HTTPS | ✅ 支持 |
-     | DoQ | DNS over QUIC | ✅ 支持 |
-     | DoT | DNS over TLS | ✅ 支持 |
+    | 协议 | 说明 | 状态 |
+    |------|------|------|
+    | HTTP/3 | 基于 QUIC 的下一代 HTTP | ✅ 支持 |
+    | HTTP/2 | 二进制帧协议 | ✅ 支持 |
+    | HTTP/1.1 | 传统文本协议 | ✅ 支持 |
+    | DoH | DNS over HTTPS | ✅ 支持 |
+    | DoQ | DNS over QUIC | ✅ 支持 |
+    | DoT | DNS over TLS | ✅ 支持 |
 
 ## 🤝 贡献指南
 
@@ -282,14 +282,14 @@
 
 ## 📄 许可证
 
-     本项目采用 [MIT 许可证](LICENSE)。
+    本项目采用 [MIT 许可证](LICENSE)。
 
 ## 🙏 致谢
 
-     - [quic-go](https://github.com/quic-go/quic-go) - QUIC 协议 Go 实现
-     - [miekg/dns](https://github.com/miekg/dns) - DNS 库
-     - [gin-gonic](https://github.com/gin-gonic/gin) - HTTP Web 框架
-     - [Cloudflare](https://local-aria2-webui.masx200.ddns-ip.net/) - HTTP/3 服务支持
+    - [quic-go](https://github.com/quic-go/quic-go) - QUIC 协议 Go 实现
+    - [miekg/dns](https://github.com/miekg/dns) - DNS 库
+    - [gin-gonic](https://github.com/gin-gonic/gin) - HTTP Web 框架
+    - [Cloudflare](https://local-aria2-webui.masx200.ddns-ip.net/) - HTTP/3 服务支持
 
 ## 📞 联系方式
 

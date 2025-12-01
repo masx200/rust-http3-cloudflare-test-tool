@@ -13,12 +13,7 @@
   "enable_ipv6": false,
   "dns_resolve_mode": "https",
   "doh_server": "https://xget.a1u06h9fe9y5bozbmgz3.qzz.io/cloudflare-dns.com/dns-query",
-  "test_paths": [
-    "/",
-    "/cdn-cgi/trace",
-    "/health",
-    "/api/v4/ping"
-  ],
+  "test_paths": ["/", "/cdn-cgi/trace", "/health", "/api/v4/ping"],
   "use_fallback": true,
   "max_field_section_size": 8192,
   "custom_configs": [

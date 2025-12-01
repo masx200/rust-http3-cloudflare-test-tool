@@ -118,6 +118,7 @@ cargo run --release
 #### 常见构建问题
 
 1. **RUSTFLAGS未设置**: HTTP/3功能需要`--cfg reqwest_unstable`
+
    ```bash
    # 解决方案
    export RUSTFLAGS='--cfg reqwest_unstable'
@@ -125,6 +126,7 @@ cargo run --release
    ```
 
 2. **路径依赖错误**: 确保本地库路径正确
+
    ```bash
    # 检查路径
    ls -la hickory-dns-main/ reqwest-master/

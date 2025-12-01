@@ -267,7 +267,8 @@ let input_json \= r\#"\
    头后才升级。但因为你要直接测试连通性，我们假设服务器支持，直接强制使用 HTTP/3
    握手。
 2. **resolve_to_addrs**: 这完全对应了 curl 的 \--resolve 参数。它绕过了本地 DNS
-   解析，直接向你指定的 IP 发送 SNI 为 local-aria2-webui.masx200.ddns-ip.net 的握手包。
+   解析，直接向你指定的 IP 发送 SNI 为 local-aria2-webui.masx200.ddns-ip.net
+   的握手包。
 3. **结果验证**: 输出中的 protocol_version
    字段会告诉你实际使用了什么协议。如果输出是 h3，说明 UDP 连通且 QUIC
    握手成功；如果是 h2 或 HTTP/1.1，说明 H3 失败降级了。
