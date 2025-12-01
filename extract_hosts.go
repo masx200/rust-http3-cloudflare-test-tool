@@ -57,9 +57,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 使用map去重
+	uniqueHosts := make(map[string]bool)
+	var dedupedHosts []string
+
+	for _, host := range hosts {
+		if !uniqueHosts[host] {
+			uniqueHosts[host] = true
+			dedupedHosts = append(dedupedHosts, host)
+		}
+	}
+
+	fmt.Printf("原始host数量: %d, 去重后: %d\n", len(hosts), len(dedupedHosts))
+
 	// 创建输出JSON
-	outputData := make([]HostEntry, len(hosts))
-	for i, host := range hosts {
+	outputData := make([]HostEntry, len(dedupedHosts))
+	for i, host := range dedupedHosts {
 		outputData[i] = HostEntry{Host: host}
 	}
 
@@ -84,14 +97,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("成功提取 %d 个host到 %s\n", len(hosts), absPath)
+	fmt.Printf("成功提取 %d 个host到 %s\n", len(dedupedHosts), absPath)
 	fmt.Printf("文件路径: %s\n", absPath)
 
 	// 显示前5个host作为预览
-	if len(hosts) > 0 {
+	if len(dedupedHosts) > 0 {
 		fmt.Println("\n前5个host预览:")
-		for i := 0; i < min(5, len(hosts)); i++ {
-			fmt.Printf("  %d. %s\n", i+1, hosts[i])
+		for i := 0; i < min(5, len(dedupedHosts)); i++ {
+			fmt.Printf("  %d. %s\n", i+1, dedupedHosts[i])
 		}
 	}
 }

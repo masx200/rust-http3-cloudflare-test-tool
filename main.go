@@ -400,8 +400,10 @@ func testHTTP3Connection(testURL, hostHeader, targetIP string, port int, start t
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// 使用H3实验传输器
-	transport := h3_experiment.CreateHTTP3TransportWithIP(targetIP)
+	// 使用H3实验传输器，返回可关闭的接口
+	transport := h3_experiment.CreateHTTP3TransportWithIPGetter(func() (string, error) {
+		return targetIP, nil
+	})
 
 	client := &http.Client{
 		Transport: transport,
@@ -410,6 +412,7 @@ func testHTTP3Connection(testURL, hostHeader, targetIP string, port int, start t
 
 	req, err := http.NewRequestWithContext(ctx, "GET", testURL, nil)
 	if err != nil {
+		transport.Close() // 关闭传输器
 		return false, "none", 0, "", 0, err
 	}
 
@@ -418,6 +421,7 @@ func testHTTP3Connection(testURL, hostHeader, targetIP string, port int, start t
 
 	resp, err := client.Do(req)
 	if err != nil {
+		transport.Close() // 关闭传输器
 		if *verbose {
 			fmt.Printf("    -> HTTP/3连接失败: %v\n", err)
 		}
@@ -428,6 +432,9 @@ func testHTTP3Connection(testURL, hostHeader, targetIP string, port int, start t
 	latencyMs := uint64(time.Since(start).Milliseconds())
 	statusCode := uint16(resp.StatusCode)
 	serverHeader := resp.Header.Get("Server")
+
+	// 成功后也要关闭传输器
+	defer transport.Close()
 
 	return resp.StatusCode < 500, "h3", statusCode, serverHeader, latencyMs, nil
 }
