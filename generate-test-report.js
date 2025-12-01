@@ -312,7 +312,11 @@ class TestReportGenerator {
     console.log("=".repeat(50));
   }
 }
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 // 主执行函数
 function main() {
   const resultsFilePath = join(__dirname, "connectivity_results.json");
